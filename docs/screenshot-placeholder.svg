@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" role="img" aria-label="Screenshot placeholder">
+  <rect width="960" height="420" rx="18" fill="#0b1220"/>
+  <rect x="16" y="16" width="928" height="388" rx="12" fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="10 8"/>
+  <text x="480" y="190" fill="#e2e8f0" font-family="system-ui, sans-serif" font-size="30" font-weight="700" text-anchor="middle">Q-FLOW screenshot goes here</text>
+  <text x="480" y="232" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="18" text-anchor="middle">Replace docs/screenshot-placeholder.svg (e.g. with docs/screenshot.png of the Plan / Results page)</text>
+  <text x="480" y="262" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="18" text-anchor="middle">and update the image link at the top of README.md</text>
+</svg>

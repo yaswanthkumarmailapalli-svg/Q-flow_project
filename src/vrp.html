@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>/* Theme before first paint: stored choice, else the system preference; plus the saved accent (see ui.js). */
+try{var d=document.documentElement,t=localStorage.getItem('qflowTheme'),a=localStorage.getItem('qflowAccent');if(t!=='day'&&t!=='dusk')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'day':'dusk';d.setAttribute('data-theme',t);d.setAttribute('data-accent',/^(blue|teal|green|violet|amber|rose|graphite)$/.test(a)?a:'blue')}catch(e){}</script>
+  <title>Multi-Vehicle Fleet VRP & Metaheuristic Benchmarks — Q-FLOW</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="nav" id="nav">
+    <a class="brand" href="index.html">
+    <div class="logo-badge">Q</div>
+    <span>Q-FLOW</span>
+  </a>
+    <div class="nav-menu" id="navMenu">
+      <div class="links">
+    <a href="index.html" data-i18n="home">Home</a>
+    <a href="plan.html" data-i18n="plan">Plan a Trip</a>
+    <a class="active judge-only" href="vrp.html">Fleet VRP & Benchmarks</a>
+    <a class="judge-only" href="lab.html">Research Lab</a>
+    <a href="network.html" data-i18n="network">Road Status</a>
+    <a href="incidents.html" data-i18n="alerts">Road Alerts</a>
+  </div>
+      <div class="nav-right">
+    <button class="sound-toggle" title="Toggle sound effects">🔊</button>
+    <select class="lang-select" id="langSelect">
+      <option value="en">EN</option>
+      <option value="hi">हिन्दी</option>
+      <option value="te">తెలుగు</option>
+      <option value="ta">தமிழ்</option>
+      <option value="mr">मराठी</option>
+    </select>
+    <a class="primary mini-btn" href="plan.html">Single Route →</a>
+  </div>
+    </div>
+    <div class="nav-quick">
+      <button class="theme-toggle" type="button" aria-label="Appearance settings"><span class="theme-ico" aria-hidden="true"></span><span class="theme-label">Theme</span></button>
+      <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="navMenu" aria-expanded="false">☰</button>
+    </div>
+  </nav>
+
+<main class="page">
+  <div class="page-title">
+    <div>
+      <div class="eyebrow">SIH26137 • QUANTUM-INSPIRED COMBINATORIAL OPTIMIZATION</div>
+      <h1>Multi-Vehicle Fleet Routing & Metaheuristic Benchmarks</h1>
+      <p>Capacitated Vehicle Routing with Time Windows (CVRPTW) optimized by quantum-inspired <b>QPSO (Quantum-Behaved Particle Swarm Optimization)</b>, a classical algorithm, versus other metaheuristics over dynamic <b>Bureau of Public Roads (BPR)</b> congestion graphs.</p>
+    </div>
+    <div class="live-badge" style="font-size:13px; padding:6px 14px;">
+      ● CVRPTW SOLVER READY
+    </div>
+  </div>
+
+  <section class="vrp-grid">
+    <!-- LEFT CONTROLS PANEL -->
+    <div class="form-card" style="margin-top:0;">
+      <h2 class="row-between" style="font-size: 18px; margin: 0 0 14px;">
+        <span>Fleet Dispatch Parameters</span>
+        <span style="font-size:12px; font-weight:700; color:var(--brand);" id="customerCountBadge">10 Customer Stops</span>
+      </h2>
+
+      <!-- BENCHMARK PRESET SELECTION -->
+      <label>Select Problem Scale / Instance</label>
+      <div class="choices" id="instanceScaleChoices" style="margin-bottom: 14px;">
+        <button class="choice active" data-scale="10">Small (10)</button>
+        <button class="choice" data-scale="25">Medium (25)</button>
+        <button class="choice" data-scale="50">Large (50)</button>
+        <button class="choice" data-scale="custom">Map Pins</button>
+      </div>
+
+      <!-- FLEET CAPACITY & SIZE -->
+      <div class="slider-group">
+        <label>
+          <span>Available Fleet Size:</span>
+          <b id="fleetSizeVal" style="color:var(--brand);">3 Vehicles</b>
+        </label>
+        <input type="range" id="fleetSizeSlider" min="2" max="8" value="3">
+      </div>
+
+      <div class="slider-group">
+        <label>
+          <span>Vehicle Capacity:</span>
+          <b id="fleetCapVal" style="color:var(--brand2);">80 kg / vehicle</b>
+        </label>
+        <input type="range" id="fleetCapSlider" min="40" max="250" step="10" value="80">
+      </div>
+
+      <!-- VEHICLE PROFILE SELECTOR -->
+      <label>Fleet Powertrain & Emission Model</label>
+      <div class="vehicle-grid" id="fleetVehicleGrid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 12px;">
+        <button type="button" class="vehicle-btn active" data-fleet-type="ev">
+          <span class="icon">⚡</span>
+          <span class="label">EV Fleet</span>
+        </button>
+        <button type="button" class="vehicle-btn" data-fleet-type="cargo">
+          <span class="icon">🚚</span>
+          <span class="label">Cargo Diesel</span>
+        </button>
+        <button type="button" class="vehicle-btn" data-fleet-type="rapid">
+          <span class="icon">🚑</span>
+          <span class="label">Rapid Response</span>
+        </button>
+      </div>
+
+      <!-- DYNAMIC BPR TRAFFIC VOLUME SLIDER -->
+      <div class="slider-group" style="background:var(--surface); padding:12px; border-radius:var(--radius-lg); border:1px solid var(--line);">
+        <label>
+          <span>BPR Traffic Congestion (V/C Ratio):</span>
+          <b id="trafficVal" style="color:var(--brand);">1.00x (Nominal)</b>
+        </label>
+        <input type="range" id="trafficSlider" min="0.4" max="1.9" step="0.1" value="1.0">
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 8px; font-size:12px; color:var(--muted2); margin-top:4px;">
+          <span>0.4x (Free Flow)</span>
+          <span>1.0x (Normal)</span>
+          <span>1.9x (Severe Gridlock)</span>
+        </div>
+        <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="incidentToggle" style="cursor:pointer; flex:none;">
+          <label for="incidentToggle" style="margin:0; font-size:13px; cursor:pointer; color:var(--text);">
+            Inject Major Arterial Road Incident (+35 min delay)
+          </label>
+        </div>
+        <label for="timeOfDaySelect" style="margin:14px 0 6px;">Departure time (simulated daily traffic profile)</label>
+        <select id="timeOfDaySelect" class="field-select">
+          <option value="">Flat: no time-of-day effect</option>
+          <option value="360">06:00 (early, light)</option>
+          <option value="540">09:00 (morning peak)</option>
+          <option value="780">13:00 (midday)</option>
+          <option value="1110">18:30 (evening peak)</option>
+          <option value="1320">22:00 (late, light)</option>
+        </select>
+        <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="segmentVarToggle" style="cursor:pointer; flex:none;">
+          <label for="segmentVarToggle" style="margin:0; font-size:13px; cursor:pointer; color:var(--text);">
+            Vary congestion by road (simulated, reproducible)
+          </label>
+        </div>
+        <p id="vrpTrafficNote" style="margin:10px 0 0; font-size:12.5px; color:var(--muted); line-height:1.5;">
+          Traffic here is <b>simulated</b> (BPR model with an illustrative daily profile), not live data. Distances are straight-line × 1.28, not the road network.
+        </p>
+        <div id="liveTrafficRow" hidden style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line);">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="liveTrafficToggle" style="cursor:pointer; flex:none;">
+            <label for="liveTrafficToggle" style="margin:0; font-size:13px; cursor:pointer; color:var(--text);">
+              Use live traffic (TomTom): real road distances and current travel times
+            </label>
+          </div>
+          <p style="margin:6px 0 0; font-size:12px; color:var(--muted2); line-height:1.5;">Up to 15 stops. Each run with new stops makes a few TomTom requests (counted against your daily free requests); results are reused for 5 minutes. The slider, incident, departure-time and per-road options do not apply to live traffic.</p>
+        </div>
+      </div>
+
+      <!-- ACTION BUTTONS -->
+      <button class="primary wide" id="runBenchmarkBtn" style="margin-top: 16px;">
+        <span>⚛️</span> Run QPSO vs Metaheuristics
+      </button>
+
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="secondary" id="runScalabilityBtn">
+          <span>📈</span> Scalability Test
+        </button>
+        <button class="secondary" id="resetPinsBtn">
+          Clear / Re-center
+        </button>
+      </div>
+
+      <div id="vrpStatus" class="status-note" role="status" aria-live="polite" hidden></div>
+
+      <div style="font-size:12px; color:var(--muted2); margin-top:14px; line-height:1.5;">
+        💡 <b>How it works:</b> Click anywhere on the map to add delivery nodes (up to 60) with random demands & time windows. Select an algorithm in the benchmark table below to inspect its vehicle route breakdown.
+      </div>
+    </div>
+
+    <!-- RIGHT VISUALIZATION & BENCHMARK SUITE -->
+    <div class="vrp-main">
+      <!-- MAP FRAME -->
+      <div class="map-frame">
+        <div class="map-frame-head">
+          <span>FLEET SPATIAL ROUTING (CVRPTW CLUSTER MAP)</span>
+          <span class="live-badge" id="activeAlgoBadge">ALGORITHM: —</span>
+          <span class="live-badge" id="vrpDataBadge" title="Traffic is simulated; distances are straight-line × 1.28">SIMULATED TRAFFIC · STRAIGHT-LINE DISTANCES</span>
+        </div>
+        <div class="map-box" id="vrpMap"></div>
+        <div class="map-legend" id="vrpLegend" aria-label="Map legend">
+          <span><i class="leg-line sw-depot" aria-hidden="true"></i>Depot (Hub)</span>
+          <span id="vrpVehicleLegend" style="display:contents"></span>
+        </div>
+      </div>
+
+      <!-- BENCHMARK LEADERBOARD TABLE -->
+      <div class="form-card" style="margin:0; width:auto;">
+        <div class="row-between">
+          <div>
+            <h3 style="margin:0; font-size:17px; color:var(--text-bright);">Empirical Metaheuristic Benchmarking</h3>
+            <p style="margin:4px 0 0; font-size:12.5px; color:var(--muted);">
+              All algorithms evaluated on the <b>identical CVRPTW problem instance</b> with identical capacity, time window, and BPR congestion penalties.
+            </p>
+          </div>
+          <button class="secondary action-btn" id="exportManifestBtn">
+            ⬇ Export Dispatch Manifest
+          </button>
+        </div>
+
+        <div class="bench-table-container">
+          <table class="bench-table" id="benchTable">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Algorithm</th>
+                <th>Paradigm</th>
+                <th>Mean Cost ± Std</th>
+                <th>Total Dist</th>
+                <th>Duration</th>
+                <th>Time Window Penalty</th>
+                <th>Cap Overload</th>
+                <th>CO₂ (est.)</th>
+                <th>Mean Time / Run</th>
+                <th>Distance Gap</th>
+              </tr>
+            </thead>
+            <tbody id="benchTableBody">
+              <tr>
+                <td colspan="10" style="text-align:center; padding:24px; color:var(--muted);">
+                  Click "Run QPSO vs Metaheuristics" to execute benchmark suite.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CONVERGENCE ANALYSIS CHART -->
+      <div class="convergence-box">
+        <div class="row-between" style="margin-bottom:12px;">
+          <div>
+            <b style="font-size:15px; color:var(--text-bright);">Convergence (mean of 10 seeded runs)</b>
+            <p style="margin:2px 0 0; font-size:12px; color:var(--muted);">
+              Mean best-so-far penalty cost vs. objective evaluations, with the same evaluation budget for every algorithm. Clarke-Wright is a single deterministic construction and has no curve.
+            </p>
+          </div>
+          <div class="chart-legend" id="convergenceLegend">
+            <span><svg class="qf-swatch" viewBox="0 0 28 8" aria-hidden="true" style="color:var(--accent)"><line x1="1" y1="4" x2="27" y2="4" stroke-width="3" stroke-linecap="round"/></svg>QPSO</span>
+            <span><svg class="qf-swatch" viewBox="0 0 28 8" aria-hidden="true" style="color:var(--s2)"><line x1="1" y1="4" x2="27" y2="4" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="9 5"/></svg>GA (OX)</span>
+            <span><svg class="qf-swatch" viewBox="0 0 28 8" aria-hidden="true" style="color:var(--s2)"><line x1="1" y1="4" x2="27" y2="4" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="1.5 4"/></svg>ACO</span>
+            <span><svg class="qf-swatch" viewBox="0 0 28 8" aria-hidden="true" style="color:var(--s3)"><line x1="1" y1="4" x2="27" y2="4" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="12 4 2 4"/></svg>SA</span>
+          </div>
+        </div>
+        <canvas class="convergence-chart" id="convergenceCanvas"></canvas>
+      </div>
+
+      <!-- FLEET VEHICLE ITINERARIES -->
+      <div class="form-card" style="margin:0; width:auto;">
+        <h3 style="margin:0 0 12px; font-size:16px; color:var(--text-bright);">Active Vehicle Route Manifests</h3>
+        <div class="route-summary" id="vrpSummary" aria-live="polite"></div>
+        <div class="vehicle-card-list" id="vehicleCards"></div>
+      </div>
+
+      <!-- SCALABILITY ANALYSIS CONTAINER (Hidden until Run) -->
+      <div class="form-card" id="scalabilitySection" style="display:none; margin:0; width:auto; border-color:var(--fg);">
+        <h3 style="margin:0 0 8px; font-size:16px; color:var(--text-bright);">Scalability Study (10 → 25 → 50 Customers)</h3>
+        <p style="margin:0 0 14px; font-size:12.5px; color:var(--muted);">
+          Empirical computational scaling and distance optimality gap across increasing network problem sizes.
+        </p>
+        <div class="bench-table-container">
+          <table class="bench-table" id="scaleTable">
+            <thead>
+              <tr>
+                <th>Customer Nodes</th>
+                <th>Fleet Size</th>
+                <th>QPSO Time (ms)</th>
+                <th>QPSO Dist (km)</th>
+                <th>GA Time (ms)</th>
+                <th>GA Dist (km)</th>
+                <th>SA Time (ms)</th>
+                <th>SA Dist (km)</th>
+              </tr>
+            </thead>
+            <tbody id="scaleTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Q-FLOW • SIH26137 Quantum-Inspired Intelligent Traffic Route Optimization & Multi-Vehicle VRP Suite
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="safe-html.js"></script>
+<script src="net.js"></script>
+<script src="emissions.js"></script>
+<!-- Q-FLOW app modules (order matters; formerly app.js) -->
+<script src="local-config.js"></script>
+<script src="config.js"></script>
+<script src="ui.js"></script>
+<script src="i18n.js"></script>
+<script src="location.js"></script>
+<script src="geocode.js"></script>
+<script src="routing.js"></script>
+<script src="traffic-live.js"></script>
+<script src="swarm-sim.js"></script>
+<script src="map.js"></script>
+<script src="trips.js"></script>
+<script src="vrp-engine.js"></script>
+<script>
+qflowInitChrome();
+document.getElementById('langSelect').value = qflowLang();
+document.getElementById('langSelect').onchange = e => qflowSetLang(e.target.value);
+
+// --- VRP UI State ---
+// Vehicles are told apart by greyscale shade + dash pattern (qflowSeries in ui.js), not colour.
+// Algorithms keep one series each across pages: QPSO 0, GA 1, ACO 2, SA 3.
+const ALGO_SERIES = {
+  'QPSO (Quantum-Inspired Particle Swarm)': 0,
+  'Genetic Algorithm (GA)': 1,
+  'Ant Colony Optimization (ACO)': 2,
+  'Simulated Annealing (SA)': 3
+};
+
+let map = qflowBuildMap('vrpMap', { collapsible: true });
+let centerLat = parseFloat(localStorage.getItem('qflowLocLat')) || 17.3850;
+let centerLng = parseFloat(localStorage.getItem('qflowLocLng')) || 78.4867;
+map.setView([centerLat, centerLng], 12);
+
+let activeNodes = QFlowVRP.generateBenchmarkInstance(10, { lat: centerLat, lng: centerLng });
+let nodeMarkers = [];
+let routePolylineLayers = [];
+let lastBenchmarkResult = null;
+let selectedAlgoResult = null;
+let lastRun = null;          // scenario the shown results were computed for (nodes, matrices, fleet)
+let customPinsAdded = 0;     // stops placed by clicking the map since the last reset
+const MAX_PINS = 60;         // keeps one optimisation run responsive in the browser
+
+const vrpStatus = document.getElementById('vrpStatus');
+function showVrpStatus(html, kind) {
+  vrpStatus.hidden = !html;
+  vrpStatus.className = 'status-note' + (kind ? ' ' + kind : '');
+  vrpStatus.innerHTML = html || '';
+}
+
+// Vehicle profile multipliers
+const FLEET_PROFILES = {
+  ev: { name: 'Electric Delivery Van', co2Factor: 0, speedKmH: 40 },
+  cargo: { name: 'Cargo Diesel Van', co2Factor: 140, speedKmH: 42 },
+  rapid: { name: 'Rapid Response Cruiser', co2Factor: 110, speedKmH: 52 }
+};
+let currentFleetType = 'ev';
+
+// --- UI Binding ---
+const fleetSizeSlider = document.getElementById('fleetSizeSlider');
+const fleetSizeVal = document.getElementById('fleetSizeVal');
+const fleetCapSlider = document.getElementById('fleetCapSlider');
+const fleetCapVal = document.getElementById('fleetCapVal');
+const trafficSlider = document.getElementById('trafficSlider');
+const trafficVal = document.getElementById('trafficVal');
+const incidentToggle = document.getElementById('incidentToggle');
+const customerCountBadge = document.getElementById('customerCountBadge');
+
+fleetSizeSlider.oninput = () => {
+  fleetSizeVal.textContent = fleetSizeSlider.value + ' Vehicles';
+};
+fleetCapSlider.oninput = () => {
+  fleetCapVal.textContent = fleetCapSlider.value + ' kg / vehicle';
+};
+trafficSlider.oninput = () => {
+  const v = parseFloat(trafficSlider.value);
+  trafficVal.textContent = v.toFixed(1) + 'x (' + (v < 0.8 ? 'Free Flow' : v > 1.3 ? 'Heavy Congestion' : 'Nominal') + ')';
+};
+
+// Changing the scenario after a run: say so, and re-cost the shown plan.
+fleetSizeSlider.onchange = () => markStale('fleet size');
+fleetCapSlider.onchange = () => markStale('vehicle capacity');
+trafficSlider.onchange = () => markStale('traffic level');
+incidentToggle.onchange = () => markStale('road incident');
+document.getElementById('timeOfDaySelect').onchange = () => markStale('departure time');
+document.getElementById('segmentVarToggle').onchange = () => markStale('per-road congestion');
+
+document.querySelectorAll('#fleetVehicleGrid .vehicle-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#fleetVehicleGrid .vehicle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFleetType = btn.dataset.fleetType;
+    qflowAudio.playClick();
+    if (lastBenchmarkResult) recomputeSelectedAlgorithm();
+  };
+});
+
+// Scale Selector buttons
+document.querySelectorAll('#instanceScaleChoices .choice').forEach(btn => {
+  btn.onclick = () => {
+    const scale = btn.dataset.scale;
+    if (scale !== 'custom' && customPinsAdded > 0 && !window.confirm(`Replace the ${customPinsAdded} stop(s) you placed with ${scale} generated stops?`)) return;
+    document.querySelectorAll('#instanceScaleChoices .choice').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    qflowAudio.playClick();
+
+    if (scale === 'custom') {
+      qflowToast('Click on the map to add custom customer stops!', 'info');
+    } else {
+      const count = parseInt(scale, 10);
+      customPinsAdded = 0;
+      activeNodes = QFlowVRP.generateBenchmarkInstance(count, { lat: centerLat, lng: centerLng });
+      renderNodesOnMap();
+      runBenchmark();
+    }
+  };
+});
+
+// Map click to place custom delivery stops
+map.on('click', e => {
+  if (activeNodes.length - 1 >= MAX_PINS) {
+    qflowToast(`Up to ${MAX_PINS} delivery stops per plan. Use "Clear / Re-center" to start again.`, 'warn');
+    return;
+  }
+  const scaleBtn = document.querySelector('#instanceScaleChoices .choice[data-scale="custom"]');
+  if (!scaleBtn.classList.contains('active')) {
+    document.querySelectorAll('#instanceScaleChoices .choice').forEach(b => b.classList.remove('active'));
+    scaleBtn.classList.add('active');
+  }
+
+  const newId = activeNodes.length;
+  const ready = Math.floor(Math.random() * 180);
+  activeNodes.push({
+    id: newId,
+    name: `Customer Stop #${newId}`,
+    lat: parseFloat(e.latlng.lat.toFixed(5)),
+    lng: parseFloat(e.latlng.lng.toFixed(5)),
+    demand: Math.floor(Math.random() * 15) + 5,
+    readyTime: ready,
+    dueTime: ready + 90,
+    serviceTime: 10
+  });
+  renderNodesOnMap();
+  customPinsAdded++;
+  qflowToast(`Added Delivery Stop #${newId} (${activeNodes[newId].demand} kg)`, 'success');
+  markStale('stop added');
+});
+
+// Render Nodes (Depot + Customers)
+function renderNodesOnMap() {
+  nodeMarkers.forEach(m => map.removeLayer(m));
+  nodeMarkers = [];
+
+  customerCountBadge.textContent = `${activeNodes.length - 1} Customer Stops`;
+
+  activeNodes.forEach((node, idx) => {
+    let marker;
+    if (idx === 0) {
+      // Depot Icon
+      marker = L.marker([node.lat, node.lng], {
+        icon: L.divIcon({
+          className: 'depot-pin',
+          iconSize: [86, 26],
+          html: '<div class="qf-pin qf-pin-depot">🏭 DEPOT</div>'
+        })
+      }).addTo(map).bindPopup('<b>' + escapeHtml(node.name) + '</b><br>Central Logistics Distribution Hub');
+    } else {
+      // Customer Stop Pin
+      marker = L.marker([node.lat, node.lng], {
+        icon: L.divIcon({
+          className: 'cust-pin',
+          iconSize: [26, 26],
+          html: `<div class="qf-pin">${node.id}</div>`
+        })
+      }).addTo(map).bindPopup(`
+        <b>${escapeHtml(node.name)}</b><br>
+        📦 Demand: <b>${node.demand} kg</b><br>
+        🕒 Window: <b>${node.readyTime}m – ${node.dueTime}m</b>
+      `);
+    }
+    nodeMarkers.push(marker);
+  });
+}
+
+// Render vehicle routes on Leaflet
+function drawVehicleRoutes(routes) {
+  routePolylineLayers.forEach(l => map.removeLayer(l));
+  routePolylineLayers = [];
+
+  if (!routes || !routes.length) return;
+
+  renderVehicleLegend(routes.length);
+  routes.forEach((route, vIdx) => {
+    const series = qflowVehicleStyle(vIdx); // distinct colour + dash per vehicle
+    const pathCoords = [
+      [activeNodes[0].lat, activeNodes[0].lng],
+      ...route.customers.map(cId => [activeNodes[cId].lat, activeNodes[cId].lng]),
+      [activeNodes[0].lat, activeNodes[0].lng]
+    ];
+
+    const poly = L.polyline(pathCoords, {
+      className: series.cls, // stroke shade from the theme (style.css)
+      weight: series.width + 1.5,
+      opacity: 0.95,
+      dashArray: series.dashArray
+    }).addTo(map);
+
+    poly.bindPopup(`<b>Vehicle #${vIdx + 1} Route</b><br>Stops: ${route.customers.length}<br>Load: ${route.load} kg`);
+    routePolylineLayers.push(poly);
+  });
+
+  const allBounds = activeNodes.map(n => [n.lat, n.lng]);
+  map.fitBounds(allBounds, { padding: [30, 30] });
+}
+
+// Draw Convergence Chart on Canvas
+function drawConvergenceChart(benchmarkResults) {
+  const canvas = document.getElementById('convergenceCanvas');
+  const ctx = canvas.getContext('2d');
+  // Size the drawing buffer to the canvas's rendered (CSS) size so nothing is stretched.
+  const cssW = canvas.clientWidth || canvas.parentElement.clientWidth;
+  const cssH = canvas.clientHeight || 180;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = cssW, H = cssH;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Find max cost for scaling
+  let maxCost = 0;
+  let minCost = Infinity;
+  let maxLen = 0;
+
+  // Mean best-so-far cost over the N runs, sampled on a shared evaluations axis.
+  const curveOf = r => (r.stats && r.stats.convergenceByEvals ? r.stats.convergenceByEvals.cost : r.convergence);
+  benchmarkResults.forEach(r => {
+    const c = curveOf(r);
+    if (c) {
+      maxCost = Math.max(maxCost, ...c);
+      minCost = Math.min(minCost, ...c);
+      maxLen = Math.max(maxLen, c.length);
+    }
+  });
+
+  const span = maxCost - minCost || 1;
+
+  // Grid lines
+  ctx.strokeStyle = qflowCssVar('--line', 'rgba(128,128,128,0.3)');
+  ctx.lineWidth = 1;
+  for (let y = 20; y < H; y += 35) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  // Draw curves
+  benchmarkResults.forEach(r => {
+    const curve = curveOf(r);
+    if (!curve || curve.length < 2 || !r.stats || !r.stats.convergenceByEvals) return;
+    const st = qflowSeries(ALGO_SERIES[r.algorithm] !== undefined ? ALGO_SERIES[r.algorithm] : 4);
+    ctx.strokeStyle = st.color;
+    ctx.lineWidth = st.width;
+    ctx.setLineDash(st.dash);
+    ctx.beginPath();
+
+    curve.forEach((val, i) => {
+      const x = (i / (maxLen - 1)) * (W - 20) + 10;
+      const y = H - ((val - minCost) / span) * (H - 30) - 15;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+}
+
+// Redraw the chart in the new theme's greys, and at the new size after a resize.
+window.addEventListener('qflow:themechange', () => { if (lastBenchmarkResult) drawConvergenceChart(lastBenchmarkResult); });
+let _vrpResizeT = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_vrpResizeT);
+  _vrpResizeT = setTimeout(() => { if (lastBenchmarkResult) drawConvergenceChart(lastBenchmarkResult); }, 150);
+});
+
+// Re-render results that depend on settings which do not change the plan itself
+// (fleet powertrain -> CO2 estimate), keeping the selected algorithm.
+function recomputeSelectedAlgorithm() {
+  if (!lastBenchmarkResult) return;
+  renderBenchmarkTable(lastBenchmarkResult);
+  if (selectedAlgoResult) renderVehicleCards(selectedAlgoResult.routes);
+}
+
+// Render Leaderboard
+function renderBenchmarkTable(benchmarkResults) {
+  const tbody = document.getElementById('benchTableBody');
+  tbody.innerHTML = '';
+
+  // Ranked by mean cost over the N seeded runs (not by one lucky run).
+  const sorted = benchmarkResults.slice().sort((a, b) => a.stats.mean - b.stats.mean);
+
+  sorted.forEach((r, idx) => {
+    const tr = document.createElement('tr');
+    // Keep the user's selected algorithm highlighted when the table is re-rendered.
+    if (selectedAlgoResult ? r === selectedAlgoResult : idx === 0) tr.classList.add('active-algo');
+
+    // Estimate: each route at its own average driving speed (src/emissions.js), scaled to the fleet's base factor.
+    const co2Val = currentFleetType === 'ev' ? '0 g (Zero Tailpipe)' : ('≈ ' + Math.round(QFlowEmissions.routesGrams(r.routes, { baseGPerKm: FLEET_PROFILES[currentFleetType].co2Factor })) + ' g');
+    const gapStr = r.distImprovementPct > 0 ? `+${r.distImprovementPct}%` : `${r.distImprovementPct}%`;
+
+    tr.innerHTML = `
+      <td><span class="rank-badge rank-${idx + 1}">#${idx + 1}</span></td>
+      <td>
+        <div class="algo-badge">
+          <b>${escapeHtml(r.algorithm)}</b>
+          ${r.feasible === false ? `<span class="badge-infeasible" title="Capacity, time-window or fleet-size violation">Infeasible</span>` : ''}
+        </div>
+        ${r.notes ? `<div style="color:var(--warn); font-size:12px; margin-top:3px; max-width:260px; line-height:1.35;">${escapeHtml(r.notes.join(' '))}</div>` : ''}
+      </td>
+      <td style="color:var(--muted); font-size:12px;">${r.type}</td>
+      <td><b>${r.stats.mean.toFixed(1)}</b>${r.stats.runs > 1 ? ` <span style="color:var(--muted); font-size:12px;">± ${r.stats.std.toFixed(1)}</span>` : ''}<div style="color:var(--muted); font-size:12px;">gap ${r.stats.gapPct.toFixed(1)}% · ${r.stats.runs} run${r.stats.runs > 1 ? 's' : ''}</div></td>
+      <td><b style="color:var(--text-bright);">${r.totalDistKm} km</b></td>
+      <td>${r.totalTimeMin} min</td>
+      <td>${r.timeViolations > 0 ? `<span style="color:var(--warn);">${r.timeViolations} min late</span>` : `<span style="color:var(--brand2);">✓ 0 min</span>`}</td>
+      <td>${r.capViolations > 0 ? `<span style="color:var(--danger);">${r.capViolations} kg</span>` : `<span style="color:var(--brand2);">✓ 0 kg</span>`}</td>
+      <td>${co2Val}</td>
+      <td><b style="color:var(--brand);">${r.stats.meanTimeMs} ms</b><div style="color:var(--muted); font-size:12px;">${r.stats.meanEvaluations.toLocaleString()} evals</div></td>
+      <td><span style="font-weight:700; color:${r.distImprovementPct >= 0 ? 'var(--brand2)' : 'var(--muted)'};">${gapStr}</span></td>
+    `;
+
+    tr.tabIndex = 0;
+    tr.setAttribute('aria-label', 'Show the ' + r.algorithm + ' plan on the map');
+    tr.onclick = () => {
+      document.querySelectorAll('#benchTable tbody tr').forEach(row => row.classList.remove('active-algo'));
+      tr.classList.add('active-algo');
+      selectedAlgoResult = r;
+      document.getElementById('activeAlgoBadge').textContent = 'ALGORITHM: ' + r.algorithm.toUpperCase();
+      drawVehicleRoutes(r.routes);
+      renderVehicleCards(r.routes);
+      renderRouteSummary(r);
+      qflowAudio.playClick();
+    };
+    tr.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tr.onclick(); } };
+
+    tbody.appendChild(tr);
+  });
+}
+
+// Render Vehicle Itinerary Cards
+function renderVehicleCards(routes) {
+  const container = document.getElementById('vehicleCards');
+  container.innerHTML = '';
+  const vehicleCap = parseInt(fleetCapSlider.value, 10);
+
+  routes.forEach((route, idx) => {
+    const pct = Math.min(100, Math.round((route.load / vehicleCap) * 100));
+    const card = document.createElement('div');
+    card.className = 'vehicle-card';
+    card.innerHTML = `
+      <div class="row-between">
+        <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+          ${qflowVehicleSwatch(idx)}
+          <b style="color:var(--text-bright);">Vehicle #${idx + 1} (${FLEET_PROFILES[currentFleetType].name})</b>
+        </div>
+        <span style="font-size:12px; font-weight:${pct > 90 ? '800' : '600'}; color:var(--text);">${route.load} / ${vehicleCap} kg${pct > 90 ? ' (near full)' : ''}</span>
+      </div>
+      <div class="utilization-bar">
+        <div class="utilization-fill" style="width:${pct}%;"></div>
+      </div>
+      <div style="font-size:12px; color:var(--muted); margin-top:8px;">
+        <span>📍 Waypoint Stops: <b>${route.customers.length}</b></span> • 
+        <span>🕒 Shift Finish: <b>${route.finishTime.toFixed(0)} min</b></span>
+      </div>
+      <div style="font-size:12px; color:var(--muted2); margin-top:6px; overflow-wrap:anywhere;">
+        Tour: Depot → ${route.customers.map(c => '#' + c).join(' → ')} → Depot
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// Main Execution
+// Read every scenario control and build the (simulated) cost matrix.
+function readScenario() {
+  const fleetSize = parseInt(fleetSizeSlider.value, 10);
+  const vehicleCap = parseInt(fleetCapSlider.value, 10);
+  const trafficRatio = parseFloat(trafficSlider.value);
+  const tod = document.getElementById('timeOfDaySelect').value;
+  const variation = document.getElementById('segmentVarToggle').checked ? 0.4 : 0;
+
+  let incidentMatrix = null;
+  if (incidentToggle.checked) {
+    incidentMatrix = {};
+    for (let i = 0; i < activeNodes.length; i++) {
+      incidentMatrix[i] = {};
+      for (let j = 0; j < activeNodes.length; j++) {
+        // Simulated delay on certain arterial corridors
+        if ((i + j) % 3 === 0) incidentMatrix[i][j] = 35; // 35 min incident penalty
+      }
+    }
+  }
+  const opts = { timeOfDayMin: tod === '' ? undefined : parseInt(tod, 10), segmentVariation: variation, seed: 26137 };
+  const live = liveWanted() && liveMatrixFor(activeNodes);
+  if (live) return { fleetSize, vehicleCap, matrix: live.matrix, freeMatrix: live.freeMatrix, nodes: activeNodes.slice() };
+  const matrix = QFlowVRP.buildCostMatrix(activeNodes, trafficRatio, incidentMatrix, opts);
+  return { fleetSize, vehicleCap, matrix, nodes: activeNodes.slice() };
+}
+
+// ---------- Live traffic (TomTom Matrix Routing) for the fleet problem ----------
+// liveCache: { sig, matrix, freeMatrix } for the current stops; used only while the toggle is on.
+let liveCache = null;
+const liveToggle = document.getElementById('liveTrafficToggle');
+const nodesSig = (nodes) => nodes.map(n => (+n.lat).toFixed(5) + ',' + (+n.lng).toFixed(5)).join(';');
+const liveWanted = () => !!(liveToggle && liveToggle.checked && typeof qflowLive !== 'undefined' && qflowLive && qflowLive.enabled());
+function liveMatrixFor(nodes) { return liveCache && liveCache.sig === nodesSig(nodes) ? liveCache : null; }
+function paintTrafficControls() {
+  const on = liveWanted();
+  ['trafficSlider', 'incidentToggle', 'timeOfDaySelect', 'segmentVarToggle'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = on; el.title = on ? 'Not used with live traffic' : ''; }
+  });
+}
+if (typeof qflowLive !== 'undefined' && qflowLive && qflowLive.enabled()) {
+  document.getElementById('liveTrafficRow').hidden = false;
+  liveToggle.onchange = () => { paintTrafficControls(); markStale(liveToggle.checked ? 'live traffic on' : 'live traffic off'); };
+}
+// Fetches the live matrix for the current stops if needed; resolves to a status message or ''.
+function ensureLiveMatrix() {
+  if (!liveWanted()) return Promise.resolve('');
+  if (activeNodes.length > QFlowLive.MAX_MATRIX_NODES) return Promise.resolve(`Live traffic supports up to ${QFlowLive.MAX_MATRIX_NODES - 1} stops; this run uses simulated traffic for ${activeNodes.length - 1} stops.`);
+  if (liveMatrixFor(activeNodes)) return Promise.resolve('');
+  const nodes = activeNodes.slice();
+  const fallback = QFlowVRP.buildCostMatrix(nodes, parseFloat(trafficSlider.value));
+  return qflowLive.matrix(nodes, fallback).then(res => {
+    if (!res) return 'Live traffic (TomTom) is unavailable right now; this run uses simulated traffic.';
+    liveCache = { sig: nodesSig(nodes), matrix: res.matrix, freeMatrix: res.freeMatrix };
+    const f = res.matrix.traffic.failedCells;
+    return f ? `TomTom could not route ${f} of ${nodes.length * (nodes.length - 1)} stop pairs; those use simulated times.` : '';
+  });
+}
+function paintDataBadge(traffic) {
+  const b = document.getElementById('vrpDataBadge');
+  const live = traffic && traffic.source === 'live';
+  b.textContent = live ? 'LIVE TRAFFIC (TOMTOM) · ROAD DISTANCES' : 'SIMULATED TRAFFIC · STRAIGHT-LINE DISTANCES';
+  b.title = live ? 'Travel times and road distances from TomTom Matrix Routing with live traffic, fetched ' + new Date(traffic.fetchedAt).toLocaleTimeString() : 'Traffic is simulated; distances are straight-line × 1.28';
+  b.classList.toggle('live-on', live);
+}
+
+// Main Execution
+function runBenchmark() {
+  const btn = document.getElementById('runBenchmarkBtn');
+  if (btn.disabled) return;
+  if (activeNodes.length < 2) {
+    showVrpStatus('Add at least one delivery stop (click the map, or pick a problem size) before optimising.', 'warn');
+    return;
+  }
+  qflowAudio.playQuantumSweep();
+  const label = btn.innerHTML;
+  btn.disabled = true;
+  btn.setAttribute('aria-busy', 'true');
+  btn.textContent = 'Optimising… (10 runs per algorithm)';
+  const fetching = liveWanted() && activeNodes.length <= QFlowLive.MAX_MATRIX_NODES && !liveMatrixFor(activeNodes);
+  showVrpStatus(fetching
+    ? `Getting live travel times between ${activeNodes.length} points from TomTom…`
+    : `Optimising ${activeNodes.length - 1} stops: 10 seeded runs per algorithm on the same ${liveWanted() && liveMatrixFor(activeNodes) ? 'live' : 'simulated'} traffic. This can take a few seconds.`);
+
+  // Live traffic first (if on), then yield so the busy state is painted before the (synchronous) optimisation runs.
+  const go = (liveNote) => setTimeout(() => {
+    try {
+      const sc = readScenario();
+      paintDataBadge(sc.matrix.traffic);
+      // 10 independent seeded runs per algorithm, same evaluation budget for each.
+      const fullRes = QFlowVRP.runFullBenchmark(sc.nodes, sc.matrix, sc.vehicleCap, sc.fleetSize, { runs: 10 });
+      lastRun = Object.assign(sc, { freeMatrix: sc.freeMatrix || QFlowVRP.buildCostMatrix(sc.nodes, 0) });
+
+      lastBenchmarkResult = fullRes.results;
+      selectedAlgoResult = fullRes.bestAlgorithm;
+
+      document.getElementById('activeAlgoBadge').textContent = 'ALGORITHM: ' + selectedAlgoResult.algorithm.toUpperCase();
+      renderBenchmarkTable(fullRes.results);
+      drawVehicleRoutes(selectedAlgoResult.routes);
+      renderVehicleCards(selectedAlgoResult.routes);
+      renderRouteSummary(selectedAlgoResult);
+      drawConvergenceChart(fullRes.results);
+
+      if (!fullRes.anyFeasible) {
+        const why = fullRes.diagnostics.map(d => d.message).join(' ') || 'The time windows or fleet are too tight for this traffic. Try more vehicles, more capacity, lighter traffic or an earlier departure.';
+        showVrpStatus('<b>No algorithm found a plan without violations.</b> ' + escapeHtml(why), 'warn');
+      } else if (!selectedAlgoResult.feasible) {
+        showVrpStatus('<b>The lowest-mean-cost plan still has violations</b> (see the plan summary). Other rows marked without "Infeasible" are violation-free.', 'warn');
+      } else {
+        showVrpStatus(liveNote ? escapeHtml(liveNote) : '', liveNote ? 'warn' : undefined);
+      }
+      qflowToast(`Benchmark complete: ${selectedAlgoResult.algorithm} had the lowest mean cost over ${fullRes.runs} runs (${fullRes.maxEvaluations.toLocaleString()} evaluations each). Showing its best run.`, 'success');
+    } catch (e) {
+      console.error(e);
+      showVrpStatus(qflowErrorHtml(e));
+    } finally {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      btn.innerHTML = label;
+    }
+  }, 30);
+  // Without live traffic this stays synchronous (exactly as before); with it, fetch first.
+  if (fetching) ensureLiveMatrix().catch(() => 'Live traffic (TomTom) is unavailable right now; this run uses simulated traffic.').then(go);
+  else go(liveWanted() && activeNodes.length > QFlowLive.MAX_MATRIX_NODES ? `Live traffic supports up to ${QFlowLive.MAX_MATRIX_NODES - 1} stops; this run uses simulated traffic for ${activeNodes.length - 1} stops.` : '');
+}
+
+// Key figures for the plan on the map. Congestion delay compares the same routes
+// under the current (simulated) traffic with free-flow traffic.
+function renderRouteSummary(r) {
+  const el = document.getElementById('vrpSummary');
+  if (!r || !lastRun) { el.innerHTML = ''; return; }
+  const free = QFlowVRP.evaluateRoutes(r.routes.map(x => x.customers), lastRun.nodes, lastRun.freeMatrix, lastRun.vehicleCap, lastRun.fleetSize);
+  const delay = Math.max(0, r.totalTimeMin - free.totalTime);
+  const served = r.routes.reduce((s, x) => s + x.customers.length, 0), total = lastRun.nodes.length - 1;
+  const v = r.violations || {};
+  const problems = [v.capacityKg ? v.capacityKg + ' kg over capacity' : '', v.lateMin ? Math.round(v.lateMin) + ' min late' : '', v.extraVehicles ? '+' + v.extraVehicles + ' vehicle(s) over the fleet' : ''].filter(Boolean);
+  const cell = (label, value, cls) => `<div class="${cls || ''}"><small>${label}</small><b>${escapeHtml(value)}</b></div>`;
+  el.innerHTML =
+    cell('Distance', r.totalDistKm + ' km') +
+    cell('Total route time', Math.round(r.totalTimeMin) + ' min') +
+    cell(lastRun.matrix.traffic && lastRun.matrix.traffic.source === 'live' ? 'Traffic delay (live, TomTom)' : 'Congestion delay (simulated)', '+' + Math.round(delay) + ' min') +
+    cell('Vehicles used', r.routes.length + ' of ' + lastRun.fleetSize) +
+    cell('Stops served', served + ' of ' + total) +
+    cell('Status', r.feasible === false ? 'Infeasible: ' + problems.join(', ') : 'Feasible', r.feasible === false ? 'bad' : 'ok');
+}
+
+// Results on screen no longer match the controls: say so and re-cost the shown plan.
+function markStale(reason) {
+  if (!lastRun) return;
+  let note = `<b>Settings changed (${escapeHtml(reason)}).</b> The table and routes are from the previous run.`;
+  // Live traffic not fetched yet for these stops: no re-costing (it would use simulated times).
+  if (selectedAlgoResult && activeNodes.length === lastRun.nodes.length && !(liveWanted() && !liveMatrixFor(activeNodes))) {
+    try {
+      const sc = readScenario();
+      const again = QFlowVRP.evaluateRoutes(selectedAlgoResult.routes.map(x => x.customers), sc.nodes, sc.matrix, sc.vehicleCap, sc.fleetSize);
+      const f = QFlowVRP.feasibilityOf(again);
+      note += ` Under the new settings the shown plan would cost <b>${again.cost.toFixed(1)}</b> (was ${selectedAlgoResult.bestCost.toFixed(1)})${f.feasible ? '' : ' and would have violations'}.`;
+    } catch (e) { /* invalid settings are reported when running */ }
+  } else if (activeNodes.length > lastRun.nodes.length) {
+    note += ` ${activeNodes.length - lastRun.nodes.length} new stop(s) are not in the plan yet.`;
+  }
+  note += ' <button class="secondary mini-btn" type="button" id="rerunBtn">Run again</button>';
+  showVrpStatus(note, 'warn');
+  document.getElementById('rerunBtn').onclick = runBenchmark;
+}
+
+// Legend entries matching the vehicle routes drawn on the map.
+function renderVehicleLegend(count) {
+  const n = Math.max(1, Math.min(8, count || parseInt(fleetSizeSlider.value, 10)));
+  document.getElementById('vrpVehicleLegend').innerHTML = Array.from({ length: n }, (_, i) =>
+    `<span>${qflowVehicleSwatch(i)}Vehicle ${i + 1}</span>`).join('');
+}
+renderVehicleLegend();
+
+document.getElementById('runBenchmarkBtn').onclick = runBenchmark;
+
+// Scalability Test Handler
+document.getElementById('runScalabilityBtn').onclick = () => {
+  qflowToast('Running multi-node scalability analysis (10, 25, 50 nodes)…', 'info');
+  const section = document.getElementById('scalabilitySection');
+  section.style.display = 'block';
+  const tbody = document.getElementById('scaleTableBody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px;">Computing scaling matrices…</td></tr>';
+
+  setTimeout(() => {
+    let study;
+    try {
+      study = QFlowVRP.runScalabilityStudy([10, 25, 50], { lat: centerLat, lng: centerLng });
+    } catch (e) {
+      console.error(e);
+      tbody.innerHTML = '<tr><td colspan="8">' + qflowErrorHtml(e) + '</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    study.forEach(s => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><b>${s.nodeCount} Nodes</b></td>
+        <td>${s.vehicles}</td>
+        <td><b style="color:var(--brand);">${s.qpso.timeMs.toFixed(1)} ms</b></td>
+        <td>${s.qpso.distKm} km</td>
+        <td>${s.ga.timeMs.toFixed(1)} ms</td>
+        <td>${s.ga.distKm} km</td>
+        <td>${s.sa.timeMs.toFixed(1)} ms</td>
+        <td>${s.sa.distKm} km</td>
+      `;
+      tbody.appendChild(row);
+    });
+    qflowToast('Scalability study generated successfully.', 'success');
+    section.scrollIntoView({ behavior: 'smooth' });
+  }, 100);
+};
+
+// Clear / Re-center
+document.getElementById('resetPinsBtn').onclick = () => {
+  if (customPinsAdded > 0 && !window.confirm(`Remove the ${customPinsAdded} stop(s) you placed and start again with 10 generated stops?`)) return;
+  customPinsAdded = 0;
+  centerLat = parseFloat(localStorage.getItem('qflowLocLat')) || 17.3850;
+  centerLng = parseFloat(localStorage.getItem('qflowLocLng')) || 78.4867;
+  activeNodes = QFlowVRP.generateBenchmarkInstance(10, { lat: centerLat, lng: centerLng });
+  renderNodesOnMap();
+  runBenchmark();
+};
+
+// Export Manifest
+document.getElementById('exportManifestBtn').onclick = () => {
+  if (!selectedAlgoResult) return;
+  const manifest = {
+    generator: 'Q-FLOW Quantum-Inspired & Metaheuristic VRP Platform',
+    algorithm: selectedAlgoResult.algorithm,
+    timestamp: new Date().toISOString(),
+    fleetType: FLEET_PROFILES[currentFleetType].name,
+    trafficVolumeRatio: parseFloat(trafficSlider.value),
+    totalDistanceKm: selectedAlgoResult.totalDistKm,
+    totalTimeMin: selectedAlgoResult.totalTimeMin,
+    vehicles: selectedAlgoResult.routes.map((r, i) => ({
+      vehicleId: i + 1,
+      capacityKg: parseInt(fleetCapSlider.value, 10),
+      assignedLoadKg: r.load,
+      stopsSequence: r.customers.map(cId => ({
+        stopId: cId,
+        name: activeNodes[cId].name,
+        demandKg: activeNodes[cId].demand,
+        lat: activeNodes[cId].lat,
+        lng: activeNodes[cId].lng
+      }))
+    }))
+  };
+
+  const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `qflow_vrp_manifest_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  qflowToast('VRP Dispatch Manifest Exported', 'success');
+};
+
+// Initial Setup
+renderNodesOnMap();
+runBenchmark();
+window.addEventListener('resize', () => {
+  if (lastBenchmarkResult) drawConvergenceChart(lastBenchmarkResult);
+});
+</script>
+<script src="mode.js"></script>
+</body>
+</html>

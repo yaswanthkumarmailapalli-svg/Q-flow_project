@@ -1,0 +1,77 @@
+Q-FLOW (SIH26137) - Problem statement coverage
+Estimated by checking the code, the measured held-out results and the submission documents (updated 3 Oct 2026).
+Not an official SIH score.
+
+Scoring: 100% = done, 70-95% = mostly done, 50% = partly done,
+25% = implemented but the claim is not proven, 0% = missing.
+
+History of this estimate: 72% (start) -> 78% (QPSO upgrade, overclaims fixed) -> ~86% (this update).
+
+
+1. REQUIREMENTS                                            ~90%
+--------------------------------------------------------------
+- Quantum-inspired QPSO algorithm ......................... 100%
+- Network modelled as a weighted graph .................... 100%
+- VRP solving (capacity + time windows) ................... 100%
+- Mathematical formulation ................................ 100%
+- Constraint handling ..................................... 100%
+- Benchmark vs GA, ACO, SA, PSO, Clarke-Wright ............ 100%
+- Real-time (TomTom) and simulated traffic ................ 100%
+- Dynamic route generation / rerouting .................... 100%
+- Minimise travel time and distance ....................... 100%
+- Convergence analysis (curves + convergence-speed table)   95%
+- Shortest-path problem (synthetic grid, not real roads) ..  85%
+- Benchmark vs exact methods (true optimum <= 9 stops,
+  no MILP for larger) .....................................  80%
+- QPSO better than classical algorithms ...................  75%
+    (better quality per evaluation at 8 and 20 stops, tie at 50, ahead on 2/3 at 100 and 200;
+     not faster in wall-clock time)
+- Scalability (50 stops full study; 100/200 preliminary) ..  70%
+- Minimise traffic congestion (per route only) ............  50%
+
+
+2. OBJECTIVES                                              ~78%
+--------------------------------------------------------------
+- Obj 1: Framework for large-scale VRP + shortest path ....  85%
+- Obj 2: Minimise time, distance, congestion ..............  80%
+- Obj 3: Lower complexity, faster convergence, better
+         quality than classical algorithms ................  75%
+- Obj 4: Scalability for smart-city logistics .............  70%
+
+
+3. EXPECTED DELIVERABLES (DELIVERY TABLE)                  ~92%
+--------------------------------------------------------------
+- Complete software platform (web + Android APK) .......... 100%
+- QPSO implementation ..................................... 100%
+- Graph-based network modelling ........................... 100%
+- Mathematical formulation ................................ 100%
+- Constraint handling ..................................... 100%
+- Systematic benchmarking vs metaheuristics ............... 100%
+- Real-time / simulated traffic ........................... 100%
+- Source code + automated tests (20 test files) ........... 100%
+- Documentation (README, BENCHMARK, AUDIT, extra results) . 100%
+- Convergence analysis .................................... 100%
+- Technical report (docs/Q-FLOW_Technical_Report.pdf) ..... 100%
+- Presentation (docs/Q-FLOW_SIH26137_Presentation.pptx) .. 100%
+- Benchmark vs exact methods ..............................  80%
+- Scalability demonstration ...............................  70%
+- Demo video (script ready: docs/demo-video-script.md) ....  30%
+
+
+4. OVERALL                                                 ~86%
+--------------------------------------------------------------
+- Requirements ............................................  90%
+- Objectives ..............................................  78%
+- Deliverables ............................................  92%
+
+
+5. WHAT IS STILL NEEDED FOR 93-95% (estimates)
+--------------------------------------------------------------
+- Record the demo video (script ready) .................... +2 overall
+- Add team names to the report cover and slide 1 .......... (required, no score change)
+- Measured congestion experiment (system travel time,
+  simulated network) ...................................... +2 overall
+- Larger scalability study (100-200 stops, 10 instances) .. +1 to +2 overall
+- MILP exact solver for 10-15 stops (e.g. OR-Tools) ....... +1 overall
+- Shortest path on a real OSM road extract ................ +1 overall
+Doing all of these could reach roughly 92-94% on this scale.

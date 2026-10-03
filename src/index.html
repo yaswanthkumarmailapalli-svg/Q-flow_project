@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>/* Theme before first paint: stored choice, else the system preference; plus the saved accent (see ui.js). */
+try{var d=document.documentElement,t=localStorage.getItem('qflowTheme'),a=localStorage.getItem('qflowAccent');if(t!=='day'&&t!=='dusk')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'day':'dusk';d.setAttribute('data-theme',t);d.setAttribute('data-accent',/^(blue|teal|green|violet|amber|rose|graphite)$/.test(a)?a:'blue')}catch(e){}</script>
+  <title>Q-FLOW — Quantum-Inspired Intelligent Traffic Route Optimization</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <nav class="nav" id="nav">
+    <a class="brand" href="index.html">
+      <div class="logo-badge">Q</div>
+      <span>Q-FLOW</span>
+    </a>
+    <div class="nav-menu" id="navMenu">
+      <div class="links">
+      <a class="active" href="index.html" data-i18n="home">Home</a>
+      <a href="plan.html" data-i18n="plan">Plan a Trip</a>
+      <a class="judge-only" href="vrp.html">Fleet VRP</a>
+      <a class="judge-only" href="lab.html">Research Lab</a>
+      <a href="network.html" data-i18n="network">Road Status</a>
+      <a href="incidents.html" data-i18n="alerts">Road Alerts</a>
+    </div>
+      <div class="nav-right">
+      <button class="sound-toggle" title="Toggle sound effects">🔊</button>
+      <select class="lang-select" id="langSelect">
+        <option value="en">EN</option>
+        <option value="hi">हिन्दी</option>
+        <option value="te">తెలుగు</option>
+        <option value="ta">தமிழ்</option>
+        <option value="mr">मराठी</option>
+      </select>
+      <a class="primary mini-btn judge-only" href="vrp.html">Fleet VRP →</a>
+    </div>
+    </div>
+    <div class="nav-quick">
+      <button class="theme-toggle" type="button" aria-label="Appearance settings"><span class="theme-ico" aria-hidden="true"></span><span class="theme-label">Theme</span></button>
+      <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="navMenu" aria-expanded="false">☰</button>
+    </div>
+  </nav>
+
+  <div class="hero-wrapper">
+    <main class="hero">
+      <section class="hero-copy">
+        <div class="eyebrow judge-only">SIH26137 • QUANTUM-INSPIRED ROUTING & VRP</div>
+        <h1 data-i18n="heroTitle">Smarter routes.<br><span class="gradient-text" data-i18n="heroTitle2">Calmer traffic.</span></h1>
+        <p data-i18n="heroBody">Q-FLOW finds the best route for you and spreads traffic across roads, so roads do not jam.</p>
+<p class="judge-only">Q-FLOW combines real OpenStreetMap topology with <b>QPSO (Quantum-Behaved Particle Swarm Optimization)</b>, a quantum-inspired classical algorithm that runs on ordinary hardware, and <b>Bureau of Public Roads (BPR)</b> traffic congestion models to solve multi-vehicle routing, deliver capacity-constrained schedules, and benchmark against classical metaheuristics.</p>
+
+        <div class="live-metrics-bar">
+          <div class="metric-pill">
+            <span>Roads &amp; routes</span>
+            <strong>OpenStreetMap</strong>
+          </div>
+          <div class="metric-pill">
+            <span>Traffic data</span>
+            <strong class="brand" id="trafficSource">Simulated</strong>
+          </div>
+          <div class="metric-pill">
+            <span>Optimiser</span>
+            <strong>QPSO, on device</strong>
+          </div>
+          <div class="metric-pill">
+            <span>Location</span>
+            <strong id="locSource">Not shared yet</strong>
+          </div>
+        </div>
+
+        <div class="loc-strip" id="locStrip">
+          <span class="loc-dot"></span>
+          <span data-i18n="locating">Finding your location…</span>
+        </div>
+
+        <div class="actions">
+          <a class="primary judge-only" href="vrp.html" id="heroVrpBtn">
+            <span>⚛️</span> Multi-Vehicle Fleet VRP <b>→</b>
+          </a>
+          <a class="secondary" href="plan.html" id="heroPlanBtn">
+            <span data-i18n="planBtn">Single Journey Route</span>
+          </a>
+          <a class="secondary" href="network.html" data-i18n="exploreBtn">
+            <span>⚡</span> See Road Status (simulated)
+          </a>
+        </div>
+
+        <div style="font-size:12px; color:var(--muted2); margin-top:14px;">
+          Driver routes on OpenStreetMap roads <b>· Fleet optimisation with quantum-inspired QPSO, benchmarked against GA, ACO, SA and PSO · BPR congestion model</b>
+        </div>
+      </section>
+
+      <section class="map-frame">
+        <div class="map-frame-head">
+          <span>YOUR AREA</span>
+          <span class="live-badge" id="homeTrafficBadge" title="The coloured corridors are examples, not measured traffic">EXAMPLE CORRIDORS · NOT LIVE TRAFFIC</span>
+        </div>
+        <div class="map-box" id="homeMap"></div>
+        <div class="map-legend" id="homeLegend">
+          <span><i class="leg-line sw-flow-free" aria-hidden="true"></i>Optimal Flow</span>
+          <span><i class="leg-line sw-flow-busy" aria-hidden="true"></i>Moderate Density</span>
+          <span><i class="leg-line sw-flow-jam" aria-hidden="true"></i>Heavy Congestion</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <section class="judge-only feature-strip">
+    <div class="feature-card">
+      <span class="num-badge">01</span>
+      <h3>Quantum-Inspired PSO (QPSO)</h3>
+      <p>A quantum-inspired, classical metaheuristic: the Sun, Feng & Xu delta-potential-well position update with mean-best (mbest) attraction, plus local search and heuristic seeding for CVRPTW routing. No quantum hardware is involved.</p>
+    </div>
+    <div class="feature-card">
+      <span class="num-badge">02</span>
+      <h3>Empirical Benchmarking (GA, ACO, SA)</h3>
+      <p>Side-by-side comparison with Genetic Algorithms (OX crossover), Ant Colony pheromones, Simulated Annealing, and the Clarke-Wright savings heuristic, under the same evaluation budget with 10 seeded runs each.</p>
+    </div>
+    <div class="feature-card">
+      <span class="num-badge">03</span>
+      <h3>BPR Congestion & Fleet Types</h3>
+      <p>Travel times grow non-linearly with road load using the Bureau of Public Roads (BPR) volume-over-capacity function, or come from live TomTom traffic. Fleet runs compare EV, cargo and bike profiles and report energy use and estimated CO₂.</p>
+    </div>
+  </section>
+
+  <footer>
+    Q-FLOW • SIH26137 Quantum-Inspired Intelligent Traffic Route Optimization Platform
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="safe-html.js"></script>
+<script src="net.js"></script>
+<script src="emissions.js"></script>
+<!-- Q-FLOW app modules (order matters; formerly app.js) -->
+<script src="local-config.js"></script>
+<script src="config.js"></script>
+<script src="ui.js"></script>
+<script src="i18n.js"></script>
+<script src="location.js"></script>
+<script src="geocode.js"></script>
+<script src="routing.js"></script>
+<script src="traffic-live.js"></script>
+<script src="swarm-sim.js"></script>
+<script src="map.js"></script>
+<script src="trips.js"></script>
+  <script>
+    qflowInitChrome();
+    document.getElementById('langSelect').value = qflowLang();
+    document.getElementById('langSelect').onchange = e => qflowSetLang(e.target.value);
+
+    const map = qflowBuildMap('homeMap', { collapsible: true });
+    map.setView([20.5937, 78.9629], 5);
+
+    // Labels switch to live only once TomTom traffic tiles have actually loaded.
+    qflowOnLiveTraffic(map, () => {
+      const b = document.getElementById('homeTrafficBadge');
+      b.textContent = 'LIVE TRAFFIC · TOMTOM';
+      b.title = 'Road colours show current traffic from TomTom';
+      b.classList.add('live-on');
+      document.getElementById('trafficSource').textContent = 'Live (TomTom)';
+      document.getElementById('homeLegend').innerHTML =
+        '<span><i class="qf-live-bar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span> Live traffic: free flow → slow → jam → closed (TomTom)</span>';
+    });
+
+    const locStrip = document.getElementById('locStrip');
+    qflowGetLocation(function (loc, info) {
+      if (loc) {
+        locStrip.innerHTML = '<span class="loc-dot"></span> ' + (loc.source === 'ip' ? 'Approximately near' : 'Located near') + ' <b>' + escapeHtml(loc.label) + '</b> <span style="color:var(--muted)">(' + escapeHtml(qflowLocationAccuracyText(loc)) + ')</span>'; // label from Nominatim / ipapi
+        document.getElementById('locSource').textContent = loc.source === 'ip' ? 'Approximate (IP)' : (Number.isFinite(loc.accuracyM) ? 'Device, ±' + loc.accuracyM + ' m' : 'Device');
+        map.flyTo([loc.lat, loc.lng], 14, { duration: 1.2 });
+        map._qflowLoc = [loc.lat, loc.lng];
+
+        // Pulse marker
+        L.circleMarker([loc.lat, loc.lng], {
+          radius: 9,
+          className: 'qf-loc',
+          fillOpacity: 0.9,
+          weight: 3
+        }).addTo(map).bindPopup('<b>Current Location:</b> ' + escapeHtml(loc.label)).openPopup();
+
+        if (typeof qflowLive !== 'undefined' && qflowLive && qflowLive.enabled()) {
+          // Live traffic: real incidents near you (TomTom); the coloured roads are the live flow layer.
+          qflowLive.incidents(loc.lat, loc.lng, 10).then(list => {
+            if (!list) return;
+            qflowShowIncidents(map, list);
+            const n = list.length;
+            locStrip.insertAdjacentHTML('beforeend', ' <span style="color:var(--muted)">· ' + (n ? n + ' live traffic incident' + (n === 1 ? '' : 's') + ' within about 10 km' : 'no traffic incidents reported within about 10 km') + ' (TomTom)</span>');
+          });
+        } else {
+          // Two example corridors near the user (illustration only; not traffic data)
+          const d = 0.012;
+          L.polyline([[loc.lat - d, loc.lng - d], [loc.lat + d, loc.lng + d]], { className: 'qf-flow-free', weight: 4, opacity: 0.9 }).addTo(map).bindPopup('Example corridor (illustration, not live traffic)');
+          L.polyline([[loc.lat + d, loc.lng - d], [loc.lat - d, loc.lng + d]], { className: 'qf-flow-busy', weight: 6, opacity: 0.9 }).addTo(map).bindPopup('Example corridor (illustration, not live traffic)');
+        }
+      } else {
+        locStrip.classList.add('warn');
+        locStrip.innerHTML = '<span class="loc-dot"></span> ' + (info && (info.reason === 'denied' || info.reason === 'declined')
+          ? 'Location is off. Type your start address on the Plan page.'
+          : 'Could not find your location. ' + escapeHtml(qflowLocationHelpText(info)));
+        document.getElementById('locSource').textContent = 'Off';
+      }
+    });
+
+  </script>
+<script src="mode.js"></script>
+</body>
+</html>

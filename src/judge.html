@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>/* Theme before first paint: stored choice, else the system preference; plus the saved accent (see ui.js). */
+try{var d=document.documentElement,t=localStorage.getItem('qflowTheme'),a=localStorage.getItem('qflowAccent');if(t!=='day'&&t!=='dusk')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'day':'dusk';d.setAttribute('data-theme',t);d.setAttribute('data-accent',/^(blue|teal|green|violet|amber|rose|graphite)$/.test(a)?a:'blue')}catch(e){}</script>
+  <title>Judge Hub — Q-FLOW</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <nav class="nav" id="nav">
+    <a class="brand" href="index.html">
+      <div class="logo-badge">Q</div>
+      <span>Q-FLOW</span>
+    </a>
+    <div class="nav-menu" id="navMenu">
+      <div class="links">
+      <a href="index.html" data-i18n="home">Home</a>
+      <a href="plan.html" data-i18n="plan">Plan a Trip</a>
+      <a class="judge-only" href="vrp.html">Fleet VRP</a>
+      <a class="judge-only" href="lab.html">Research Lab</a>
+      <a href="network.html" data-i18n="network">Road Status</a>
+      <a href="incidents.html" data-i18n="alerts">Road Alerts</a>
+    </div>
+      <div class="nav-right">
+      <button class="sound-toggle" title="Toggle sound effects">🔊</button>
+      <select class="lang-select" id="langSelect">
+        <option value="en">EN</option>
+        <option value="hi">हिन्दी</option>
+        <option value="te">తెలుగు</option>
+        <option value="ta">தமிழ்</option>
+        <option value="mr">मराठी</option>
+      </select>
+      <a class="primary mini-btn judge-only" href="vrp.html">Fleet VRP →</a>
+    </div>
+    </div>
+    <div class="nav-quick">
+      <button class="theme-toggle" type="button" aria-label="Appearance settings"><span class="theme-ico" aria-hidden="true"></span><span class="theme-label">Theme</span></button>
+      <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="navMenu" aria-expanded="false">☰</button>
+    </div>
+  </nav>
+<main class="judge-hub">
+<h1>Judge Hub</h1>
+<p style="font-size:17px">Drivers see a simple app. Behind it, QPSO balances traffic across roads. Everything a judge needs to check the science is on this page.</p>
+<div class="jh-grid">
+<a class="jh-card" href="vrp.html"><b>Fleet VRP</b><span>Many vehicles, one network. QPSO compared with GA, ACO, SA and Clarke-Wright.</span></a>
+<a class="jh-card" href="lab.html"><b>Research Lab</b><span>Benchmarks, convergence charts and statistics.</span></a>
+<a class="jh-card" href="network.html"><b>Road Status</b><span>Live-style city view. Technical panels are visible in Judge view.</span></a>
+<a class="jh-card" href="plan.html"><b>Driver app</b><span>Plan a trip the way a driver would.</span></a>
+</div>
+<h2>What the optimizer balances</h2>
+<p>The fleet optimiser minimises one cost: total distance, plus 0.4 × total route time (including traffic delay from the BPR congestion model or live TomTom times), plus heavy penalties for capacity overload, late arrivals and using more vehicles than the fleet has. QPSO searches for the set of routes with the lowest cost. The code is in <code>src/vrp-engine.js</code> and <code>src/vrp-extras.js</code>. Run <code>npm test</code> to check it.</p>
+<h2>Real and simulated, stated plainly</h2>
+<table class="jh-table"><tr><th>Part</th><th>Status</th><th>Note</th></tr>
+<tr><td>Map, search, routes and alternatives</td><td class="jh-real">Real</td><td>OpenStreetMap, Photon and OSRM</td></tr>
+<tr><td>QPSO and baseline algorithms</td><td class="jh-real">Real code</td><td>Tests and benchmarks included</td></tr>
+<tr><td>Nearby stop suggestions</td><td class="jh-real">Real</td><td>OpenStreetMap places via Overpass</td></tr>
+<tr><td>Traffic colours, incidents, route times, fleet travel times</td><td class="jh-sim">Simulated by default</td><td>Live from TomTom when a TomTom API key is set (Appearance &gt; Live traffic); every page then labels which parts are live.</td></tr>
+<tr><td>Heavy-traffic alert (delay, clear time)</td><td class="jh-sim">Simulated</td><td>A labelled prediction without a TomTom key; with one, the measured live delay (no invented clear time).</td></tr>
+<tr><td>City-wide road status and swarm graphs</td><td class="jh-sim">Simulated</td><td>Shows what the optimizer output would look like</td></tr>
+<tr><td>Event surge and green-wave tips</td><td class="jh-sim">Estimated</td><td>Reasonable assumed numbers, not sensor data</td></tr></table>
+<h2>Judge suggestion: heavy traffic ahead</h2>
+<p>Open Plan a Trip, choose a route, and look under the route list. The alert shows the distance ahead, the extra minutes, when it usually clears, and a real place to stop. The driver picks Keep going or Wait nearby and leave at the clear time.</p>
+<h2>Short answers</h2>
+<p><b>Is it live?</b> Routing and maps are live. City-wide traffic data is simulated for this prototype.<br><b>What is next?</b> Connect a live traffic feed and run QPSO zone by zone across the city.<br><b>Without internet?</b> It shows a clear message and keeps the last known map.</p>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="safe-html.js"></script>
+<script src="net.js"></script>
+<script src="emissions.js"></script>
+<!-- Q-FLOW app modules (order matters; formerly app.js) -->
+<script src="local-config.js"></script>
+<script src="config.js"></script>
+<script src="ui.js"></script>
+<script src="i18n.js"></script>
+<script src="location.js"></script>
+<script src="geocode.js"></script>
+<script src="routing.js"></script>
+<script src="traffic-live.js"></script>
+<script src="swarm-sim.js"></script>
+<script src="map.js"></script>
+<script src="trips.js"></script>
+<script src="mode.js"></script>
+</body></html>

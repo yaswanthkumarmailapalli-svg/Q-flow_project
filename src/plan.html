@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>/* Theme before first paint: stored choice, else the system preference; plus the saved accent (see ui.js). */
+try{var d=document.documentElement,t=localStorage.getItem('qflowTheme'),a=localStorage.getItem('qflowAccent');if(t!=='day'&&t!=='dusk')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'day':'dusk';d.setAttribute('data-theme',t);d.setAttribute('data-accent',/^(blue|teal|green|violet|amber|rose|graphite)$/.test(a)?a:'blue')}catch(e){}</script>
+  <title>Plan a Trip — Q-FLOW</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="nav" id="nav">
+    <a class="brand" href="index.html">
+    <div class="logo-badge">Q</div>
+    <span>Q-FLOW</span>
+  </a>
+    <div class="nav-menu" id="navMenu">
+      <div class="links">
+    <a href="index.html" data-i18n="home">Home</a>
+    <a class="active" href="plan.html" data-i18n="plan">Plan a Trip</a>
+    <a class="judge-only" href="vrp.html">Fleet VRP</a>
+    <a class="judge-only" href="lab.html">Research Lab</a>
+    <a href="network.html" data-i18n="network">Road Status</a>
+    <a href="incidents.html" data-i18n="alerts">Road Alerts</a>
+  </div>
+      <div class="nav-right">
+    <button class="sound-toggle" title="Toggle sound effects">🔊</button>
+    <select class="lang-select" id="langSelect">
+      <option value="en">EN</option>
+      <option value="hi">हिन्दी</option>
+      <option value="te">తెలుగు</option>
+      <option value="ta">தமிழ்</option>
+      <option value="mr">मराठी</option>
+    </select>
+    <a class="mini-btn judge-only" href="vrp.html">Fleet VRP →</a>
+  </div>
+    </div>
+    <div class="nav-quick">
+      <button class="theme-toggle" type="button" aria-label="Appearance settings"><span class="theme-ico" aria-hidden="true"></span><span class="theme-label">Theme</span></button>
+      <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="navMenu" aria-expanded="false">☰</button>
+    </div>
+  </nav>
+
+<main class="page">
+  <div class="page-title">
+    <div>
+      <div class="eyebrow">INTELLIGENT TRIP PLANNER</div>
+      <h1>Where are you heading?</h1>
+      <p>Single-vehicle journey routing with optional waypoints, on OpenStreetMap roads. For multi-vehicle fleet routing with capacities & delivery time windows, open the <a class="judge-only" href="vrp.html" style="color:var(--brand); text-decoration:underline;">Fleet VRP Suite</a>.</p>
+    </div>
+    <div class="step-indicator">01 <span>/ 02</span></div>
+  </div>
+
+  <section class="planner">
+    <div class="form-card">
+      <label>Vehicle Profile</label>
+      <div class="vehicle-grid" id="vehicleGrid">
+        <button type="button" class="vehicle-btn active" data-vehicle="car">
+          <span class="icon">🚗</span>
+          <span class="label">Car</span>
+        </button>
+        <button type="button" class="vehicle-btn" data-vehicle="ev">
+          <span class="icon">⚡</span>
+          <span class="label">EV Eco</span>
+        </button>
+        <button type="button" class="vehicle-btn" data-vehicle="emergency">
+          <span class="icon">🚑</span>
+          <span class="label">Emergency</span>
+        </button>
+        <button type="button" class="vehicle-btn" data-vehicle="bike">
+          <span class="icon">🛵</span>
+          <span class="label">2-Wheeler</span>
+        </button>
+      </div>
+
+      <label data-i18n="from">Starting point</label>
+      <div class="field-row">
+        <div class="input-box">
+          <span>📍</span>
+          <input id="from" value="Finding your location…" aria-label="Starting point">
+          <button type="button" class="input-locate" id="locateFrom" title="Use my current location">◎</button>
+        </div>
+      </div>
+
+      <div class="swap-btn">
+        <button type="button" id="swapBtn" title="Swap start and destination">⇅</button>
+      </div>
+
+      <label data-i18n="to">Destination</label>
+      <div class="field-row">
+        <div class="input-box">
+          <span>🎯</span>
+          <input id="to" placeholder="Search destination (e.g. airport, hospital, tech park)" aria-label="Destination">
+          <button type="button" class="input-locate" id="locateTo" title="Set destination to my current location">◎</button>
+        </div>
+      </div>
+      
+      <div class="history-row" id="historyRow" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;"></div>
+
+      <div class="stops-section" style="margin-top:16px;">
+        <div class="stops-head">
+          <label style="margin:0" data-i18n="stops">Stops along the way <span style="font-size:12px;color:var(--muted2);font-weight:400">(optional)</span></label>
+          <button type="button" class="add-stop" id="addStop" data-i18n="addStop">+ Add stop</button>
+        </div>
+        <div class="stops-list" id="stopsList"></div>
+      </div>
+
+      <label data-i18n="arriveMode">Departure Scheduling</label>
+      <div class="choices" id="timeMode">
+        <button class="choice active" data-mode="now" data-i18n="leaveNow">Leave now</button>
+        <button class="choice" data-mode="event" data-i18n="arriveBy">Arrive by a set time</button>
+      </div>
+
+      <div class="event-box" id="eventBox" style="display:none; background:var(--surface2); border:1px solid var(--line); border-radius:var(--radius-lg); padding:16px; margin-top:10px;">
+        <label style="margin-top:0">Target Arrival Time</label>
+        <div class="input-box" style="margin-top:6px;">
+          <span>🕒</span>
+          <input type="time" id="arriveTime" aria-label="Arrive by time">
+        </div>
+        <div class="tip" id="leaveTip" style="background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px; font-size:12.5px; color:var(--muted); margin-top:10px; line-height:1.5">
+          <b>Best time to leave</b><br>
+          Select an arrival time and Q-FLOW will suggest when to leave, from the route's estimated travel time (OpenStreetMap road speeds; no live traffic).
+        </div>
+      </div>
+
+      <label data-i18n="prefLabel">What matters most?</label>
+      <div class="choices" id="choices">
+        <button class="choice active" data-pref="balanced">⚖️ Balanced</button>
+        <button class="choice" data-pref="fast">⚡ Fastest (Min Time)</button>
+        <button class="choice" data-pref="smooth">🚦 Fewer Signals</button>
+        <button class="choice" data-pref="road">📏 Shortest Distance</button>
+        <button class="choice" data-pref="green">🌿 Greenest (Min CO₂ &amp; Stops)</button>
+      </div>
+
+      <button class="primary wide" id="findRoutes" style="margin-top:20px;" data-i18n="findBtn">
+        <span>🧭</span> Find Multi-Objective Routes
+      </button>
+    </div>
+
+    <div class="map-frame">
+      <div class="map-frame-head">
+        <span>INTERACTIVE ROUTE PREVIEW</span>
+        <span class="live-badge" id="mapTag">READY</span>
+        <span class="live-badge" id="routeSourceBadge" title="Routes and durations come from the OSRM routing service on OpenStreetMap roads. Durations use typical road speeds, not live traffic.">ROADS: OSM VIA OSRM · NO LIVE TRAFFIC</span>
+      </div>
+      <div class="map-box" id="planMap"></div>
+      <div id="planStatus" style="display:none; padding:12px 18px; font-size:13px; border-top:1px solid var(--line); background:var(--surface2);"></div>
+      <div class="map-legend" id="planLegend" style="display:none">
+        <span><i class="leg-line sw-route-a" aria-hidden="true"></i>Route A (Recommended)</span>
+        <span><i class="leg-line sw-route-b" aria-hidden="true"></i>Route B (Alternative)</span>
+        <span><i class="leg-line sw-route-c" aria-hidden="true"></i>Route C (Detour)</span>
+      </div>
+      <div style="padding:10px 18px; font-size:12px; color:var(--muted2); border-top:1px solid var(--line); background:var(--surface);">
+        💡 <b>Pro-Tip:</b> Click anywhere on the map to place destination or intermediate waypoints.
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Q-FLOW • SIH26137 Quantum-Inspired Intelligent Traffic Route Optimization
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="safe-html.js"></script>
+<script src="net.js"></script>
+<script src="emissions.js"></script>
+<!-- Q-FLOW app modules (order matters; formerly app.js) -->
+<script src="local-config.js"></script>
+<script src="config.js"></script>
+<script src="ui.js"></script>
+<script src="i18n.js"></script>
+<script src="location.js"></script>
+<script src="geocode.js"></script>
+<script src="routing.js"></script>
+<script src="traffic-live.js"></script>
+<script src="swarm-sim.js"></script>
+<script src="map.js"></script>
+<script src="trips.js"></script>
+<script>
+qflowInitChrome();
+document.getElementById('langSelect').value = qflowLang();
+document.getElementById('langSelect').onchange = e => qflowSetLang(e.target.value);
+
+const map = qflowBuildMap('planMap', { collapsible: true });
+map.setView([20.5937, 78.9629], 5);
+
+let currentLoc = null;
+let destPlace = null;
+let routeLines = [];
+let stopMarkers = [];
+let lastCalculatedMinutes = null;
+let originMarker = null, destMarker = null;
+let selectedVehicle = 'car';
+
+const fromInput = document.getElementById('from');
+const toInput = document.getElementById('to');
+const mapTag = document.getElementById('mapTag');
+const planStatus = document.getElementById('planStatus');
+
+function setStatus(msg, kind) {
+  if (!msg) { planStatus.style.display = 'none'; return; }
+  planStatus.style.display = 'block';
+  planStatus.style.color = kind === 'warn' ? 'var(--warn)' : 'var(--muted)';
+  planStatus.textContent = msg;
+}
+
+// Vehicle Selection
+document.querySelectorAll('#vehicleGrid .vehicle-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#vehicleGrid .vehicle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedVehicle = btn.dataset.vehicle;
+    qflowAudio.playClick();
+    maybeDrawPreview();
+  };
+});
+
+function placeStart(loc) {
+  currentLoc = loc;
+  fromInput.value = loc.label;
+  map.flyTo([loc.lat, loc.lng], 14, { duration: 0.8 });
+  map._qflowLoc = [loc.lat, loc.lng];
+  if (originMarker) map.removeLayer(originMarker);
+  originMarker = L.circleMarker([loc.lat, loc.lng], {
+    radius: 9,
+    className: 'qf-loc',
+    fillOpacity: 0.9,
+    weight: 3
+  }).addTo(map).bindPopup('<b>Start:</b> ' + escapeHtml(loc.label));
+  mapTag.textContent = 'READY';
+  maybeDrawPreview();
+}
+
+// Manual search when location is off (denied or "Not now"): empty start field to type into.
+function useManualStart(focus) {
+  fromInput.value = '';
+  fromInput.placeholder = 'Type your starting point';
+  mapTag.textContent = 'NO LOCATION';
+  if (focus) fromInput.focus();
+}
+
+// An IP-based location is only city-level: ask the user to check it.
+function noteLocationAccuracy(loc) {
+  if (loc && loc.source === 'ip') setStatus('📍 Approximate start (' + qflowLocationAccuracyText(loc) + '). Check it, or type your exact starting point.', 'warn');
+  else if (loc && Number.isFinite(loc.accuracyM) && loc.accuracyM > 500) setStatus('📍 Your location is only accurate to ' + qflowLocationAccuracyText(loc) + '. Check the start point. ' + qflowLocationAccuracyHint(loc), 'warn');
+}
+
+qflowGetLocation(function(loc, info) {
+  if (loc) {
+    placeStart(loc);
+    noteLocationAccuracy(loc);
+  } else if (info && (info.reason === 'denied' || info.reason === 'declined')) {
+    useManualStart(false);
+    setStatus('📍 Location is off. Type your starting point above.', 'warn');
+  } else {
+    // No device fix and no IP fallback: an empty, searchable start field (not a fake "City Center").
+    useManualStart(false);
+    setStatus('⚠ Could not find your location. ' + qflowLocationHelpText(info), 'warn');
+  }
+});
+
+document.getElementById('locateFrom').onclick = () => {
+  setStatus('Finding your location… (GPS can take up to 20 seconds)');
+  qflowGetLocation((loc, info) => {
+    if (loc) { placeStart(loc); setStatus(null); noteLocationAccuracy(loc); }
+    else if (info && info.reason === 'denied') {
+      useManualStart(true);
+      setStatus('📍 Location permission is off. Turn it on for Q-FLOW in your phone or browser settings, or type your starting point.', 'warn');
+    } else if (info && info.reason === 'declined') {
+      useManualStart(true);
+      setStatus('📍 OK, type your starting point instead.', 'warn');
+    }
+    else { useManualStart(true); setStatus('⚠ Could not find your location. ' + qflowLocationHelpText(info), 'warn'); }
+  }, { userInitiated: true });
+};
+
+document.getElementById('locateTo').onclick = () => {
+  if (!currentLoc) { setStatus('⚠ Current location not ready.', 'warn'); return; }
+  toInput.value = currentLoc.label;
+  destPlace = { lat: currentLoc.lat, lng: currentLoc.lng, label: currentLoc.label };
+  maybeDrawPreview();
+};
+
+document.getElementById('swapBtn').onclick = () => {
+  if (!destPlace) { setStatus('⚠ Select a destination before swapping.', 'warn'); return; }
+  const tmpLabel = fromInput.value, tmpPlace = currentLoc;
+  fromInput.value = toInput.value;
+  toInput.value = tmpLabel;
+  currentLoc = destPlace;
+  destPlace = tmpPlace;
+  if (originMarker) map.removeLayer(originMarker);
+  originMarker = L.circleMarker([currentLoc.lat, currentLoc.lng], {
+    radius: 9,
+    className: 'qf-loc',
+    fillOpacity: 0.9,
+    weight: 3
+  }).addTo(map).bindPopup('<b>Start:</b> ' + escapeHtml(currentLoc.label));
+  qflowAudio.playClick();
+  maybeDrawPreview();
+};
+
+// Map click-to-pick
+map.on('click', e => {
+  const lat = parseFloat(e.latlng.lat.toFixed(5));
+  const lng = parseFloat(e.latlng.lng.toFixed(5));
+  qflowReverseGeocode({ lat, lng }, label => {
+    destPlace = { lat, lng, label };
+    toInput.value = label;
+    qflowToast('Destination placed from map', 'success');
+    maybeDrawPreview();
+  });
+});
+
+function renderHistory() {
+  const row = document.getElementById('historyRow');
+  const hist = qflowGetHistory();
+  row.innerHTML = hist.length
+    ? ('<span style="font-size:12px;color:var(--muted2);align-self:center;" data-i18n="recent">Recent:</span>' +
+       hist.map((h, i) => '<span class="chip tap" role="button" tabindex="0" data-i="' + i + '">' + escapeHtml(h.label) + '</span>').join(''))
+    : '';
+  row.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    const h = hist[c.dataset.i];
+    toInput.value = h.label;
+    destPlace = h;
+    qflowAudio.playClick();
+    maybeDrawPreview();
+  });
+  row.querySelectorAll('.chip').forEach(c => c.onkeydown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); c.click(); }
+  });
+}
+renderHistory();
+
+// Start point can be searched too: this is the manual fallback when location is off.
+qflowAttachAutocomplete(fromInput, {
+  onSelect: place => { placeStart(place); setStatus(null); }
+});
+
+qflowAttachAutocomplete(toInput, {
+  getNear: () => currentLoc,
+  onSelect: place => { destPlace = place; maybeDrawPreview(); }
+});
+toInput.addEventListener('input', () => { if (toInput.value.trim() === '') destPlace = null; });
+
+function collectStopPoints() {
+  return Array.from(document.querySelectorAll('.stop-input'))
+    .filter(i => i.dataset.lat && i.dataset.lng)
+    .map(i => ({ lat: parseFloat(i.dataset.lat), lng: parseFloat(i.dataset.lng), label: i.value.trim() }));
+}
+
+function redrawStopMarkers(stopPoints) {
+  stopMarkers.forEach(m => map.removeLayer(m));
+  stopMarkers = stopPoints.map((s, i) => L.marker([s.lat, s.lng], {
+    icon: L.divIcon({
+      className: 'stop-pin',
+      iconSize: [26, 26],
+      html: '<div class="qf-pin">' + (i + 1) + '</div>'
+    })
+  }).addTo(map).bindPopup('<b>Stop ' + (i + 1) + ':</b> ' + escapeHtml(s.label)));
+}
+
+function maybeDrawPreview() {
+  if (!currentLoc || !destPlace) return;
+  setStatus('Computing route options…');
+  routeLines.forEach(l => map.removeLayer(l));
+  routeLines = [];
+  if (destMarker) map.removeLayer(destMarker);
+  
+  destMarker = L.marker([destPlace.lat, destPlace.lng], {
+    icon: L.divIcon({
+      className: 'dest-pin',
+      iconSize: [26, 26],
+      html: '<div class="qf-pin qf-pin-dest">🎯</div>'
+    })
+  }).addTo(map).bindPopup('<b>Destination:</b> ' + escapeHtml(destPlace.label));
+
+  const stopPoints = collectStopPoints();
+  redrawStopMarkers(stopPoints);
+  const points = [currentLoc, ...stopPoints, destPlace];
+
+  qflowRoutes(points, function(routes, err) {
+    if (!routes) {
+      setStatus('⚠ ' + (err && err.userMessage ? err.userMessage : 'No drivable route found between coordinates.'), 'warn');
+      document.getElementById('planLegend').style.display = 'none';
+      return;
+    }
+    qflowShowRouteSource(routes);
+    setStatus(null);
+    qflowAudio.playQuantumSweep();
+    lastCalculatedMinutes = routes[0].durationMin;
+    document.getElementById('planLegend').style.display = 'flex';
+    const bounds = [];
+    routes.forEach(r => {
+      const latlngs = r.geometry.coordinates.map(c => [c[1], c[0]]);
+      const line = L.polyline(latlngs, {
+        className: 'qf-route-' + r.id, // greyscale + dash pattern per route (style.css)
+        weight: r.id === 'A' ? 6 : 4,
+        opacity: r.id === 'A' ? 0.95 : 0.8
+      }).addTo(map);
+      routeLines.push(line);
+      latlngs.forEach(p => bounds.push(p));
+    });
+    map.fitBounds(bounds, { padding: [35, 35] });
+    if (arriveInput.value) arriveInput.oninput();
+  }, selectedVehicle);
+}
+
+const stopsList = document.getElementById('stopsList');
+document.getElementById('addStop').onclick = () => {
+  const row = document.createElement('div');
+  row.className = 'stop-row field-row';
+  row.innerHTML = '<span>📍</span> <input class="stop-input" placeholder="Enter waypoint / stop address"><button type="button" class="remove-stop" aria-label="Remove stop">✕</button>';
+  row.querySelector('.remove-stop').onclick = () => { row.remove(); maybeDrawPreview(); };
+  stopsList.appendChild(row);
+  const stopInput = row.querySelector('.stop-input');
+  qflowAttachAutocomplete(stopInput, {
+    getNear: () => currentLoc,
+    onSelect: place => {
+      stopInput.value = place.label;
+      stopInput.dataset.lat = place.lat;
+      stopInput.dataset.lng = place.lng;
+      maybeDrawPreview();
+    }
+  });
+  stopInput.focus();
+};
+
+document.querySelectorAll('#choices .choice').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#choices .choice').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  qflowAudio.playClick();
+});
+
+const eventBox = document.getElementById('eventBox');
+document.querySelectorAll('#timeMode .choice').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#timeMode .choice').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  eventBox.style.display = b.dataset.mode === 'event' ? 'block' : 'none';
+  qflowAudio.playClick();
+});
+
+const arriveInput = document.getElementById('arriveTime');
+const leaveTip = document.getElementById('leaveTip');
+arriveInput.oninput = () => {
+  if (!arriveInput.value) return;
+  if (lastCalculatedMinutes == null) {
+    leaveTip.innerHTML = '<b>Select destination first</b><br>Once routes are calculated, we will compute your departure time.';
+    return;
+  }
+  const leaveStr = qflowLeaveBy(arriveInput.value, lastCalculatedMinutes);
+  leaveTip.innerHTML = '<b>Recommended Departure: ' + escapeHtml(leaveStr) + '</b><br>To arrive by ' + escapeHtml(arriveInput.value) + ' (Est. duration: ~' + escapeHtml(lastCalculatedMinutes) + ' mins at typical road speeds; no live traffic data).';
+};
+
+document.getElementById('findRoutes').onclick = () => {
+  if (!destPlace) {
+    setStatus('⚠ Please select a valid destination.', 'warn');
+    toInput.focus();
+    return;
+  }
+  const typedStops = Array.from(document.querySelectorAll('.stop-input'));
+  const unresolvedStop = typedStops.find(i => i.value.trim() && !i.dataset.lat);
+  if (unresolvedStop) {
+    setStatus('⚠ Please select "' + unresolvedStop.value.trim() + '" from suggestions to resolve coordinates.', 'warn');
+    unresolvedStop.focus();
+    return;
+  }
+  const stopPoints = collectStopPoints();
+  qflowAddHistory(destPlace);
+  localStorage.setItem('qflowFrom', currentLoc.label);
+  localStorage.setItem('qflowFromLat', currentLoc.lat);
+  localStorage.setItem('qflowFromLng', currentLoc.lng);
+  localStorage.setItem('qflowTo', destPlace.label);
+  localStorage.setItem('qflowToLat', destPlace.lat);
+  localStorage.setItem('qflowToLng', destPlace.lng);
+  localStorage.setItem('qflowStops', JSON.stringify(stopPoints));
+  localStorage.setItem('qflowPref', document.querySelector('#choices .choice.active').dataset.pref);
+  localStorage.setItem('qflowVehicle', selectedVehicle);
+
+  const eventMode = document.querySelector('#timeMode .choice.active').dataset.mode === 'event';
+  localStorage.setItem('qflowEventMode', eventMode ? '1' : '0');
+  localStorage.setItem('qflowArriveTime', eventMode ? arriveInput.value : '');
+
+  qflowAudio.playQuantumSweep();
+  window.location.href = 'results.html';
+};
+</script>
+<script src="mode.js"></script>
+</body>
+</html>

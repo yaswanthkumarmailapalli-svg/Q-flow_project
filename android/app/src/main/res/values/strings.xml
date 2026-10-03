@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Q-FLOW</string>
+    <string name="title_activity_main">Q-FLOW</string>
+    <string name="package_name">com.qflow.sih26137</string>
+    <string name="custom_url_scheme">com.qflow.sih26137</string>
+</resources>

@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>/* Theme before first paint: stored choice, else the system preference; plus the saved accent (see ui.js). */
+try{var d=document.documentElement,t=localStorage.getItem('qflowTheme'),a=localStorage.getItem('qflowAccent');if(t!=='day'&&t!=='dusk')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'day':'dusk';d.setAttribute('data-theme',t);d.setAttribute('data-accent',/^(blue|teal|green|violet|amber|rose|graphite)$/.test(a)?a:'blue')}catch(e){}</script>
+  <title>Your Routes — Q-FLOW</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+<style>
+.ins-card{background:var(--surface2);border:1px solid var(--line);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:10px;font-size:12.5px;line-height:1.5}
+.ins-head{display:flex;gap:8px;align-items:center;margin-bottom:4px;color:var(--text-bright);font-size:13.5px}
+.ins-sub{color:var(--muted);margin:2px 0 8px}
+.ins-big{font-size:22px;font-weight:800;color:var(--brand)}
+.ins-tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--warn);border:1px solid var(--warn);border-radius:var(--radius-sm);padding:1px 7px;margin-left:6px}
+.ins-log{list-style:none;margin:10px 0 0;padding:0}
+.ins-log li{border-left:3px solid var(--brand);padding:6px 10px;margin-bottom:6px;background:var(--chip);border-radius:0 8px 8px 0}
+.ins-log li.keep{border-color:var(--brand2)}
+.ins-log small{display:block;color:var(--muted2)}
+</style>
+</head>
+<body>
+<nav class="nav" id="nav">
+    <a class="brand" href="index.html">
+    <div class="logo-badge">Q</div>
+    <span>Q-FLOW</span>
+  </a>
+    <div class="nav-menu" id="navMenu">
+      <div class="links">
+    <a href="index.html" data-i18n="home">Home</a>
+    <a href="plan.html" data-i18n="plan">Plan a Trip</a>
+    <a class="judge-only" href="vrp.html">Fleet VRP</a>
+    <a class="judge-only" href="lab.html">Research Lab</a>
+    <a href="network.html" data-i18n="network">Road Status</a>
+    <a href="incidents.html" data-i18n="alerts">Road Alerts</a>
+  </div>
+      <div class="nav-right">
+    <button class="sound-toggle" title="Toggle sound effects">🔊</button>
+    <select class="lang-select" id="langSelect">
+      <option value="en">EN</option>
+      <option value="hi">हिन्दी</option>
+      <option value="te">తెలుగు</option>
+      <option value="ta">தமிழ்</option>
+      <option value="mr">मराठी</option>
+    </select>
+    <a class="mini-btn judge-only" href="vrp.html">Fleet VRP →</a>
+  </div>
+    </div>
+    <div class="nav-quick">
+      <button class="theme-toggle" type="button" aria-label="Appearance settings"><span class="theme-ico" aria-hidden="true"></span><span class="theme-label">Theme</span></button>
+      <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="navMenu" aria-expanded="false">☰</button>
+    </div>
+  </nav>
+
+<main class="page">
+  <div class="page-title">
+    <div>
+      <div class="eyebrow">ROUTE COMPARISON</div>
+      <h1>Candidate Corridors Evaluated</h1>
+      <p id="summary">Comparing routes…</p>
+      <div class="trip-chips" id="tripChips"></div>
+    </div>
+    <div class="step-indicator">02 <span>/ 02</span></div>
+  </div>
+
+  <div class="event-banner" id="eventBanner" style="display:none; margin-bottom:20px; padding:16px; border-radius:var(--radius-lg); background:var(--surface2); border:2px solid var(--fg); gap:14px; align-items:center;"></div>
+
+  <section class="results-grid">
+    <div class="map-frame">
+      <div class="map-frame-head">
+        <span>MULTI-ROUTE CORRIDOR VIEW</span>
+        <span class="live-badge" id="mapTag">OPTIMIZED</span>
+        <span class="live-badge" id="routeSourceBadge" title="Routes and durations come from the OSRM routing service on OpenStreetMap roads. Durations use typical road speeds, not live traffic.">ROADS: OSM VIA OSRM · NO LIVE TRAFFIC</span>
+      </div>
+      <div class="map-box" id="resultMap"></div>
+      <div class="map-legend" id="resultLegend" style="display:none">
+        <span><i class="leg-line sw-route-a" aria-hidden="true"></i>Route A</span>
+        <span><i class="leg-line sw-route-b" aria-hidden="true"></i>Route B</span>
+        <span><i class="leg-line sw-route-c" aria-hidden="true"></i>Route C</span>
+      </div>
+    </div>
+
+    <aside class="route-list">
+      <div class="row-between" style="margin-bottom:12px;">
+        <h2 style="margin:0; font-size:20px;">Candidate Corridors</h2>
+        <span style="font-size:12px; font-weight:700; color:var(--brand2);" id="vehicleBadge">🚗 Car Profile</span>
+      </div>
+
+      <div class="route-choice-list" id="routeChoiceList">
+        <div style="color:var(--muted); font-size:14px; padding:20px 0;">Finding your routes…</div>
+      </div>
+
+      <div class="btn-row" style="margin:16px 0;">
+        <button class="primary" id="startNavBtn">
+          <span>▶</span> Start trip
+        </button>
+      </div>
+
+      <div class="btn-row judge-only">
+        <button class="secondary action-btn" id="exportGpxBtn">
+          ⬇ GPX Export
+        </button>
+        <button class="secondary action-btn" id="exportGeoJsonBtn">
+          ⬇ GeoJSON
+        </button>
+      </div>
+
+
+      <div id="insightsPanel" style="margin-top:16px; display:none;">
+        <h3 style="margin:0 0 10px; font-size:15px;">Smart Driving Insights</h3>
+        <div class="ins-card" id="whyCard"></div>
+        <div class="ins-card" id="waveCard"></div>
+        <div class="ins-card" id="ecoCard"></div>
+        <div class="ins-card" id="poolCard"></div>
+        <div class="ins-card" id="rerouteCard">
+          <div class="ins-head"><span>🔁</span><b>Re-routing scenario &amp; explanations</b><span class="ins-tag">SIMULATED</span></div>
+          <p class="ins-sub">Simulate a sudden slowdown on your current route and see why Q-FLOW switches (or stays).</p>
+          <div class="btn-row">
+            <button class="secondary" id="simSlowBtn">⚡ Simulate traffic change</button>
+            <button class="secondary" id="simClearBtn">↺ Clear</button>
+          </div>
+          <ul id="rerouteLog" class="ins-log"></ul>
+        </div>
+      </div>
+
+      <div class="insight" style="display:flex; gap:12px; background:var(--surface2); border:1px solid var(--line); padding:14px; border-radius:var(--radius-lg); margin-top:16px; font-size:12.5px;">
+        <span style="font-size:18px; color:var(--brand);">✦</span>
+        <div>
+          <b style="color:var(--text-bright);">How routes are compared</b>
+          <p style="color:var(--muted); margin:4px 0 0; line-height:1.5;">Each route is scored on travel time, distance, signals and estimated CO₂. Your chosen preference decides which matters most.</p>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="live-metrics-bar" style="margin-top:24px;">
+    <div class="metric-pill">
+      <span>Travel Duration</span>
+      <strong class="good" id="avgTime">–</strong>
+    </div>
+    <div class="metric-pill">
+      <span>Route Distance</span>
+      <strong class="brand" id="avgDist">–</strong>
+    </div>
+    <div class="metric-pill">
+      <span>Intersections / Stops</span>
+      <strong id="avgSig">–</strong>
+    </div>
+    <div class="metric-pill">
+      <span>Carbon Footprint (est.)</span>
+      <strong class="good" id="avgCo2">–</strong>
+    </div>
+  </section>
+</main>
+
+<!-- TURN-BY-TURN NAVIGATION (real device GPS; nav-*.js) -->
+<div class="nav-sim-modal" id="navSimModal" role="dialog" aria-modal="true" aria-label="Turn-by-turn navigation">
+  <div class="nav-sim-card">
+    <div class="nav-sim-map nav-viewport" id="navViewport">
+      <div class="nav-rotor" id="navRotor"><div class="nav-map" id="simMap"></div></div>
+      <div class="sim-hud nav-hud" aria-live="polite">
+        <div class="sim-maneuver-icon" id="simManeuverIcon" aria-hidden="true">📍</div>
+        <div class="sim-instruction">
+          <b id="simMainInstruction">Getting your location…</b>
+          <span id="simSubInstruction">Navigation starts from your real GPS position</span>
+        </div>
+        <button class="secondary" id="closeSimBtn" type="button">✕ Exit</button>
+      </div>
+      <div class="nav-status" id="navStatus" role="status" hidden></div>
+      <div class="nav-controls">
+        <button type="button" class="nav-ctl" id="navCompassBtn" title="Direction of travel up / north up" aria-label="Map orientation: direction of travel up"><span id="navCompassNeedle" aria-hidden="true">▲</span><small>N</small></button>
+        <button type="button" class="nav-ctl" id="navZoomIn" aria-label="Zoom in">+</button>
+        <button type="button" class="nav-ctl" id="navZoomOut" aria-label="Zoom out">−</button>
+      </div>
+      <button type="button" class="primary nav-recenter" id="navRecenterBtn" hidden>◎ Re-centre</button>
+      <div class="nav-attrib">© OpenStreetMap contributors<span id="navProviderAttrib"></span></div>
+    </div>
+    <div class="nav-sim-sidebar">
+      <div class="row-between">
+        <h3 style="margin:0; font-size:18px;">Your trip</h3>
+        <span class="live-badge" id="navGpsBadge" title="Accuracy of your device's GPS position">GPS: waiting</span>
+      </div>
+
+      <div class="sim-telemetry">
+        <div class="sim-tel-item">
+          <small>Current Speed</small>
+          <b id="simSpeed">–</b>
+        </div>
+        <div class="sim-tel-item">
+          <small>Remaining</small>
+          <b id="simRemainingDist">–</b>
+        </div>
+        <div class="sim-tel-item">
+          <small>Time left</small>
+          <b id="simEta">–</b>
+        </div>
+      </div>
+      <p class="nav-trip-line"><span id="navArrive">Arrive at –</span> · <span id="navDest"></span></p>
+      <p class="nav-trip-line" id="navRoad"></p>
+
+      <div class="btn-row" style="margin-bottom:12px;">
+        <button class="secondary" id="navVoiceBtn" type="button" aria-pressed="true">🔊 Voice on</button>
+        <button class="secondary" id="navRerouteBtn" type="button">↻ Re-route</button>
+        <button class="primary" id="navEndBtn" type="button">End</button>
+      </div>
+
+      <div class="nav-arrived" id="navArrived" hidden>
+        <b>🏁 You have arrived</b>
+        <p id="navArrivedText"></p>
+        <div class="btn-row">
+          <a class="primary" href="plan.html">New trip</a>
+          <button class="secondary" id="navArrivedClose" type="button">Close</button>
+        </div>
+      </div>
+
+      <h4 style="margin:8px 0 4px; font-size:14px; color:var(--muted);">Next turns</h4>
+      <div class="sim-steps-list" id="simStepsList"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Q-FLOW • SIH26137 Quantum-Inspired Intelligent Traffic Route Optimization
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="safe-html.js"></script>
+<script src="net.js"></script>
+<script src="emissions.js"></script>
+<!-- Q-FLOW app modules (order matters; formerly app.js) -->
+<script src="local-config.js"></script>
+<script src="config.js"></script>
+<script src="ui.js"></script>
+<script src="i18n.js"></script>
+<script src="location.js"></script>
+<script src="geocode.js"></script>
+<script src="routing.js"></script>
+<script src="traffic-live.js"></script>
+<script src="swarm-sim.js"></script>
+<script src="map.js"></script>
+<script src="trips.js"></script>
+<script src="insights.js"></script>
+<script src="nav-routing.js"></script>
+<script src="nav-progress.js"></script>
+<script src="nav-location.js"></script>
+<script src="nav-camera.js"></script>
+<script src="nav-device.js"></script>
+<script src="nav-controller.js"></script>
+<script>
+qflowInitChrome();
+document.getElementById('langSelect').value = qflowLang();
+document.getElementById('langSelect').onchange = e => qflowSetLang(e.target.value);
+
+const from = localStorage.getItem('qflowFrom') || 'Current Location';
+const to = localStorage.getItem('qflowTo') || 'Selected Destination';
+const stops = JSON.parse(localStorage.getItem('qflowStops') || '[]');
+const fLat = parseFloat(localStorage.getItem('qflowFromLat'));
+const fLng = parseFloat(localStorage.getItem('qflowFromLng'));
+const tLat = parseFloat(localStorage.getItem('qflowToLat'));
+const tLng = parseFloat(localStorage.getItem('qflowToLng'));
+const vehicleType = localStorage.getItem('qflowVehicle') || 'car';
+
+const vehicleProfiles = {
+  car: '🚗 Standard Car',
+  ev: '⚡ Electric Vehicle (Eco)',
+  emergency: '🚑 Emergency Green Corridor',
+  bike: '🛵 Two-Wheeler'
+};
+document.getElementById('vehicleBadge').textContent = vehicleProfiles[vehicleType] || '🚗 Car Profile';
+
+document.getElementById('summary').textContent = 'Routing from ' + from + ' to ' + to + (stops.length ? (' via ' + stops.map(s=>s.label).join(', ')) : '') + '.';
+document.getElementById('tripChips').innerHTML =
+  '<span class="chip">📍 ' + escapeHtml(from) + '</span>' +
+  stops.map(s => '<span class="chip">🛑 ' + escapeHtml(s.label) + '</span>').join('') +
+  '<span class="chip">🎯 ' + escapeHtml(to) + '</span>'; // labels come from geocoders via localStorage
+
+const pref = localStorage.getItem('qflowPref') || 'balanced';
+const eventMode = localStorage.getItem('qflowEventMode') === '1';
+const arriveTime = localStorage.getItem('qflowArriveTime');
+
+function updateEventBanner(realMinutes) {
+  if (!eventMode || !arriveTime) return;
+  const leaveStr = qflowLeaveBy(arriveTime, realMinutes);
+  const banner = document.getElementById('eventBanner');
+  banner.style.display = 'flex';
+  banner.innerHTML = '<span style="font-size:24px;">🕒</span><div><b>Suggested departure: leave by ' + escapeHtml(leaveStr) + '</b><p style="margin:2px 0 0;font-size:13px;color:var(--muted);">To arrive around ' + escapeHtml(arriveTime) + ', based on an estimated ' + escapeHtml(realMinutes) + ' min trip. Traffic can change.</p></div>';
+}
+
+const map = qflowBuildMap('resultMap', { collapsible: true });
+map.setView([20.5937, 78.9629], 5);
+const mapTag = document.getElementById('mapTag');
+
+let allRoutes = [], routeLayers = {}, selectedRoute = null;
+
+function selectRoute(id) {
+  qflowAudio.playClick();
+  allRoutes.forEach(r => {
+    const layer = routeLayers[r.id];
+    if (layer) {
+      layer.setStyle({
+        weight: r.id === id ? 7 : 4,
+        opacity: r.id === id ? 1 : 0.55
+      });
+      if (r.id === id) layer.bringToFront();
+    }
+  });
+
+  document.querySelectorAll('.route-choice').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
+  const chosen = allRoutes.find(r => r.id === id);
+  selectedRoute = chosen;
+
+  document.getElementById('avgTime').textContent = chosen.durationMin + ' min';
+  document.getElementById('avgDist').textContent = chosen.distanceKm + ' km';
+  document.getElementById('avgSig').textContent = chosen.signals + ' signals';
+  document.getElementById('avgCo2').textContent = '≈ ' + chosen.co2Grams + ' g CO₂';
+  updateEventBanner(chosen.durationMin);
+  renderInsights(chosen);
+}
+
+function renderChoices(routes) {
+  const list = document.getElementById('routeChoiceList');
+  list.innerHTML = '';
+  routes.forEach((r, i) => {
+    const div = document.createElement('div');
+    div.className = 'route-choice' + ((selectedRoute ? r.id === selectedRoute.id : i === 0) ? ' selected' : '');
+    div.dataset.id = r.id;
+    div.setAttribute('role', 'button');
+    div.tabIndex = 0;
+    div.innerHTML = `
+      <div class="route-icon qf-route-icon-${escapeHtml(r.id)}">${escapeHtml(r.id)}</div>
+      <div style="flex:1;">
+        <div style="font-weight:700; color:var(--text-bright);">Route ${escapeHtml(r.id)}</div>
+        <span class="route-tag">${escapeHtml(r.tag)}</span>
+        <div style="color:var(--muted); font-size:12px; margin-top:4px;">
+          🚦 ${r.signals} stops • 🌱 ≈${r.co2Grams}g CO₂ (est.) • ⚡ ${r.energyVal} ${r.energyType}
+        </div>
+      </div>
+      <div>
+        <strong>${r.durationMin} min</strong>
+        <div style="color:var(--muted2); font-size:12px; text-align:right;">${r.distanceKm} km</div>
+        ${r.timeSource === 'live' && Number.isFinite(r.liveDelayMin) ? `<div style="color:var(--muted2); font-size:12px; text-align:right;">${r.liveDelayMin > 0 ? '+' + r.liveDelayMin + ' min traffic' : 'no traffic delay'} (live)</div>` : ''}
+      </div>`;
+    div.onclick = () => selectRoute(r.id);
+    div.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectRoute(r.id); } };
+    list.appendChild(div);
+  });
+}
+
+function fail(msg) {
+  mapTag.textContent = 'NO ROUTE';
+  document.getElementById('routeChoiceList').innerHTML = `<div style="color:var(--warn); padding:16px;">⚠ ${escapeHtml(msg)} <br><a class="secondary" href="plan.html" style="margin-top:10px;">← Back to Planner</a></div>`;
+}
+
+if (!isNaN(fLat) && !isNaN(fLng) && !isNaN(tLat) && !isNaN(tLng)) {
+  const origin = { lat: fLat, lng: fLng };
+  const dest = { lat: tLat, lng: tLng };
+  map._qflowLoc = [fLat, fLng];
+
+  L.circleMarker([origin.lat, origin.lng], {
+    radius: 8,
+    className: 'qf-loc',
+    fillOpacity: 0.9,
+    weight: 3
+  }).addTo(map).bindPopup('<b>Start:</b> ' + escapeHtml(from));
+
+  stops.forEach((s, i) => {
+    L.marker([s.lat, s.lng], {
+      icon: L.divIcon({
+        className: 'stop-pin',
+        iconSize: [26, 26],
+        html: '<div class="qf-pin">' + (i + 1) + '</div>'
+      })
+    }).addTo(map).bindPopup('<b>Stop ' + (i + 1) + ':</b> ' + escapeHtml(s.label));
+  });
+
+  L.marker([dest.lat, dest.lng], {
+    icon: L.divIcon({
+      className: 'dest-pin',
+      iconSize: [26, 26],
+      html: '<div class="qf-pin qf-pin-dest">🎯</div>'
+    })
+  }).addTo(map).bindPopup('<b>Destination:</b> ' + escapeHtml(to));
+
+  const routePoints = [origin, ...stops, dest];
+  qflowRoutes(routePoints, function(routes, err) {
+    if (!routes) {
+      fail(err && err.userMessage ? err.userMessage : 'Could not calculate a route between these coordinates.');
+      return;
+    }
+    qflowShowRouteSource(routes);
+    allRoutes = routes;
+    document.getElementById('resultLegend').style.display = 'flex';
+    const bounds = [];
+    routes.forEach((r, i) => {
+      const latlngs = r.geometry.coordinates.map(c => [c[1], c[0]]);
+      const layer = L.polyline(latlngs, {
+        className: 'qf-route-' + r.id, // greyscale + dash pattern per route (style.css)
+        weight: i === 0 ? 7 : 4,
+        opacity: i === 0 ? 1 : 0.55
+      }).addTo(map);
+      layer.on('click', () => selectRoute(r.id));
+      routeLayers[r.id] = layer;
+      latlngs.forEach(p => bounds.push(p));
+    });
+
+    map.fitBounds(bounds, { padding: [40, 40] });
+    mapTag.textContent = 'OPTIMIZED';
+    renderChoices(routes);
+
+    const scored = qflowScoreRoutes(routes, pref);
+    selectRoute(scored[0].id);
+    initialWhy = QFlowInsights.explainKeep(scored[0], routes, PREF_LABELS[pref] || pref);
+    renderInsights(scored[0]);
+  }, vehicleType);
+} else {
+  fail('Missing start point or destination. Please return to the planner.');
+}
+
+
+/* =========================================================
+   SMART DRIVING INSIGHTS (green wave, eco, carpool, re-route explainer)
+   ========================================================= */
+const PREF_LABELS = { balanced: 'Balanced', fast: 'Fastest', smooth: 'Fewer Signals', road: 'Shortest Distance', green: 'Greenest' };
+let initialWhy = '';
+const co2PerKmOf = () => (VEHICLE_PROFILES[vehicleType] || VEHICLE_PROFILES.car).co2PerKm;
+// Plain-language note on how the CO2 estimate is made (model: src/emissions.js).
+function co2MethodNote(route) {
+  const p = VEHICLE_PROFILES[vehicleType] || VEHICLE_PROFILES.car;
+  const stops = ' + ' + p.stopPenaltyG + ' g per stop-and-go cycle';
+  if (p.co2SpeedCurve === false) return 'CO₂ is an estimate: distance × a flat ' + p.co2PerKm + ' g/km lifecycle factor' + stops + '. Not a measurement.';
+  if (!route || !route.avgSpeedKmh) return 'CO₂ is an estimate: distance × ' + p.co2PerKm + ' g/km (no speed available)' + stops + '. Not a measurement.';
+  const gkm = Math.round(QFlowEmissions.gPerKm(route.avgSpeedKmh, { baseGPerKm: p.co2PerKm }));
+  return 'CO₂ is an estimate: distance × a speed-dependent factor (≈' + gkm + ' g/km at this route\'s ~' + route.avgSpeedKmh + ' km/h average; higher in slow traffic)' + stops +
+    '. Approximate COPERT-style curve, not a measurement.';
+}
+
+function renderInsights(r) {
+  if (!r) return;
+  document.getElementById('insightsPanel').style.display = 'block';
+  const I = QFlowInsights;
+
+  document.getElementById('whyCard').innerHTML =
+    '<div class="ins-head"><span>💡</span><b>Why this route?</b></div><div>' + escapeHtml(selectedRoute && selectedRoute.id === r.id ? I.explainKeep(r, allRoutes, PREF_LABELS[pref] || pref) : initialWhy) + '</div>';
+
+  const gw = I.greenWave(r);
+  document.getElementById('waveCard').innerHTML = gw.available
+    ? '<div class="ins-head"><span>🟢</span><b>Green-wave speed tip</b></div>' +
+      '<div class="ins-big">' + gw.speedKmh + ' km/h</div>' +
+      '<div>Hold about <b>' + gw.speedKmh + ' km/h</b> on Route ' + escapeHtml(r.id) + ' to meet most of its ' + gw.signals + ' signals on green (≈' + gw.savedSec + ' s saved, fewer hard stops). Your route currently averages ~' + gw.routeAvgKmh + ' km/h.</div>' +
+      '<p class="ins-sub" style="margin-top:6px">Estimate: assumes coordinated signals, ' + gw.cycleS + ' s cycle, ~' + gw.spacingM + ' m spacing. No live signal data used.</p>'
+    : '<div class="ins-head"><span>🟢</span><b>Green-wave speed tip</b></div><div class="ins-sub">' + escapeHtml(gw.reason) + '</div>';
+
+  const eco = I.ecoCompare(allRoutes);
+  let ecoHtml = '<div class="ins-head"><span>🌿</span><b>Eco comparison</b></div>';
+  if (!eco) ecoHtml += '<div class="ins-sub">Only one route available.</div>';
+  else if (eco.same) ecoHtml += '<div>Route ' + escapeHtml(eco.route.id) + ' is both the fastest and the greenest: <b>≈ ' + eco.route.co2Grams + ' g CO₂</b> (estimated).</div>';
+  else ecoHtml += '<div>Greenest is <b>Route ' + escapeHtml(eco.greenest.id) + '</b>: <b>~' + eco.co2SavedPct + '% less CO₂</b> (≈ ' + eco.co2Saved + ' g, estimated) and ' + Math.abs(eco.stopsSaved) + (eco.stopsSaved >= 0 ? ' fewer' : ' more') + ' stops than the fastest, for ' + (eco.extraMin >= 0 ? '+' + eco.extraMin : eco.extraMin) + ' min.</div>' +
+    '<p class="ins-sub" style="margin-top:6px">' + co2MethodNote(r) + '</p>';
+  document.getElementById('ecoCard').innerHTML = ecoHtml;
+
+  const cp = I.carpool(r, co2PerKmOf());
+  document.getElementById('poolCard').innerHTML =
+    '<div class="ins-head"><span>🚗</span><b>Ride-share nudge</b><span class="ins-tag">SIMULATED DEMO DATA</span></div>' +
+    '<div><b>' + cp.matches.length + ' other people</b> are heading the same way around now:</div>' +
+    cp.matches.map(m => '<div style="color:var(--muted)">• ' + escapeHtml(m.name) + ': ' + m.overlapPct + '% same route, leaves within ' + m.departDiffMin + ' min, +' + m.detourMin + ' min detour</div>').join('') +
+    '<div style="margin-top:6px">Sharing one car takes <b>' + cp.vehiclesRemoved + ' vehicles</b> off the road, saves ≈<b>' + (cp.co2SavedGrams / 1000).toFixed(1) + ' kg CO₂</b> and cuts your share to ≈ ' + cp.co2PerPersonGrams + ' g (estimated).</div>' +
+    '<p class="ins-sub" style="margin-top:6px">Riders shown are made up to demonstrate the concept; a live version needs real user demand data.</p>';
+}
+
+const rerouteLog = document.getElementById('rerouteLog');
+const SLOW_CAUSES = ['Accident reported', 'Signal failure', 'Heavy rain', 'Crowd from a nearby event', 'Road work'];
+function logReroute(text, kept) {
+  const li = document.createElement('li');
+  if (kept) li.className = 'keep';
+  const stamp = document.createElement('small');
+  stamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  li.append(String(text), stamp);
+  rerouteLog.prepend(li);
+}
+document.getElementById('simSlowBtn').onclick = () => {
+  if (!selectedRoute || !allRoutes.length) return;
+  qflowAudio.playAlert();
+  const cur = selectedRoute, cause = SLOW_CAUSES[Math.floor(Math.random() * SLOW_CAUSES.length)];
+  cur.durationMin = Math.round(cur.baseDurationMin * (1.25 + Math.random() * 0.4));
+  const ranked = qflowScoreRoutes(allRoutes, pref), best = ranked[0];
+  const gain = cur.durationMin - best.durationMin;
+  if (best !== cur && gain >= 2) {
+    logReroute(QFlowInsights.explainSwitch(cur, best, cause));
+    qflowToast('Route changed — see the explanation below', 'warn');
+    selectedRoute = best; renderChoices(allRoutes); selectRoute(best.id);
+  } else {
+    const alt = ranked.find(x => x !== cur);
+    const pct = Math.round((cur.durationMin / cur.baseDurationMin - 1) * 100);
+    logReroute('Kept Route ' + cur.id + ': ' + cause + ' added ' + pct + '% (+' + (cur.durationMin - cur.baseDurationMin) + ' min), but ' + (alt ? 'Route ' + alt.id + ' would still be ' + Math.max(0, alt.durationMin - cur.durationMin) + ' min slower or no better on your priority.' : 'there is no alternative route.'), true);
+    renderChoices(allRoutes); selectRoute(cur.id);
+  }
+};
+document.getElementById('simClearBtn').onclick = () => {
+  allRoutes.forEach(r => (r.durationMin = r.baseDurationMin));
+  rerouteLog.innerHTML = '';
+  if (selectedRoute) { renderChoices(allRoutes); selectRoute(selectedRoute.id); }
+};
+
+// Export Handlers
+document.getElementById('exportGeoJsonBtn').onclick = () => {
+  if (selectedRoute) qflowExportGeoJSON(selectedRoute);
+};
+document.getElementById('exportGpxBtn').onclick = () => {
+  if (selectedRoute) qflowExportGPX(selectedRoute);
+};
+
+/* =========================================================
+   TURN-BY-TURN NAVIGATION — real device GPS
+   LocationService (nav-location.js) -> NavigationController (nav-controller.js)
+   -> RoutingService (nav-routing.js) / RouteProgress (nav-progress.js)
+   -> NavigationCamera (nav-camera.js) -> this screen. Nothing here moves a marker
+   on a timer: the marker, camera, ETA and instructions update only on real GPS fixes.
+   ========================================================= */
+const navSimModal = document.getElementById('navSimModal');
+const NP = QFlowNavProgress;
+let navMap = null, navCamera = null, navCtl = null, navLoc = null;
+let navUserMarker = null, navAccCircle = null, navRouteLine = null, navDoneLine = null, navDestMarker = null;
+const $n = (id) => document.getElementById(id);
+
+function navStatus(msg, kind) {
+  const el = $n('navStatus');
+  el.hidden = !msg;
+  el.className = 'nav-status' + (kind ? ' ' + kind : '');
+  el.textContent = msg || '';
+}
+
+function navEnsureMap() {
+  if (navMap) return;
+  // Leaflet's own gestures are off: nav-camera.js handles them so they work while rotated.
+  navMap = L.map('simMap', { zoomControl: false, attributionControl: false, dragging: false, touchZoom: false, doubleClickZoom: false,
+    scrollWheelZoom: false, boxZoom: false, keyboard: false, tap: false, zoomSnap: 0, fadeAnimation: false, preferCanvas: false });
+  // SVG renderer (not canvas), so the route / progress / accuracy styles from style.css apply.
+  qflowStreetLayer().addTo(navMap);
+  if (typeof qflowAddLiveTrafficLayer === 'function' && typeof qflowLive !== 'undefined' && qflowLive && qflowLive.enabled()) {
+    qflowAddLiveTrafficLayer(navMap);
+    $n('navProviderAttrib').textContent = ' · Traffic © TomTom';
+  }
+  navMap.setView([tLat, tLng], 15);
+  navCamera = QFlowNavCamera.createNavigationCamera({
+    L, map: navMap, viewport: $n('navViewport'), rotor: $n('navRotor'),
+    headingUp: localStorage.getItem('qflowNavNorthUp') !== '1',
+    requestAnimationFrame: (f) => window.requestAnimationFrame(f),
+    onModeChange: (m) => { $n('navRecenterBtn').hidden = m === 'follow'; },
+    onRotate: (deg) => { $n('navCompassNeedle').style.transform = 'rotate(' + (-deg) + 'deg)'; }
+  });
+}
+
+function navDrawRoute(route) {
+  if (navRouteLine) navMap.removeLayer(navRouteLine);
+  if (navDoneLine) navMap.removeLayer(navDoneLine);
+  navDoneLine = L.polyline([], { className: 'qf-nav-done', weight: 7, opacity: 0.6 }).addTo(navMap);
+  navRouteLine = L.polyline(route.coords, { className: 'qf-route-A', weight: 8, opacity: 0.95 }).addTo(navMap);
+  if (navDestMarker) navMap.removeLayer(navDestMarker);
+  navDestMarker = L.marker([tLat, tLng], { icon: L.divIcon({ className: 'dest-pin', iconSize: [26, 26], html: '<div class="qf-pin qf-pin-dest">🎯</div>' }), interactive: false }).addTo(navMap);
+  const list = $n('simStepsList');
+  list.innerHTML = '';
+  route.steps.forEach((s, idx) => {
+    const item = document.createElement('div');
+    item.className = 'sim-step-item';
+    item.id = 'simStep_' + idx;
+    item.innerHTML = '<span aria-hidden="true">' + escapeHtml(s.icon) + '</span> <div><b>' + escapeHtml(s.text) + '</b><div style="font-size:12px;color:var(--muted);">' +
+      escapeHtml(NP.formatDistance(s.distanceM)) + (s.name ? ' • ' + escapeHtml(s.name) : '') + '</div></div>'; // road names come from the routing provider
+    list.appendChild(item);
+  });
+}
+
+function navShowFix(fix, weak) {
+  const ll = [fix.lat, fix.lng];
+  if (!navUserMarker) {
+    navAccCircle = L.circle(ll, { radius: fix.accuracy || 10, className: 'qf-nav-acc' }).addTo(navMap);
+    navUserMarker = L.marker(ll, { icon: L.divIcon({ className: 'qf-nav-user', iconSize: [36, 36], html: '<div class="qf-nav-arrow" aria-hidden="true"></div>' }), interactive: false, zIndexOffset: 1000 }).addTo(navMap);
+  }
+  navUserMarker.setLatLng(ll);
+  navAccCircle.setLatLng(ll).setRadius(Math.max(3, fix.accuracy || 10));
+  const b = $n('navGpsBadge');
+  b.textContent = 'GPS ±' + (fix.accuracy !== null ? Math.round(fix.accuracy) : '?') + ' m';
+  b.classList.toggle('live-on', !weak);
+  $n('simSpeed').textContent = fix.speed !== null ? Math.round(fix.speed * 3.6) + ' km/h' : '–';
+}
+
+function navShowProgress(p, fix, b) {
+  navShowFix(fix, false);
+  const el = navUserMarker.getElement && navUserMarker.getElement();
+  const arrow = el && el.querySelector('.qf-nav-arrow');
+  if (arrow) {
+    arrow.style.transform = 'rotate(' + (b.bearing === null ? 0 : b.bearing) + 'deg)';
+    arrow.classList.toggle('no-heading', b.bearing === null);
+  }
+  navCamera.update(fix, b.bearing, fix.speed);
+  // Remaining route ahead of the user; travelled part greyed.
+  const ahead = [p.snapped].concat(navCtl.route.coords.slice(p.seg + 1));
+  navRouteLine.setLatLngs(ahead);
+  navDoneLine.setLatLngs(navCtl.route.coords.slice(0, p.seg + 1).concat([p.snapped]));
+  const s = p.nextStep;
+  $n('simManeuverIcon').textContent = s.icon;
+  $n('simMainInstruction').textContent = s.text;
+  $n('simSubInstruction').textContent = s.type === 'arrive' ? NP.formatDistance(p.distToNextM) + ' to go' : 'In ' + NP.formatDistance(p.distToNextM);
+  $n('simRemainingDist').textContent = NP.formatDistance(p.remainingM);
+  $n('simEta').textContent = NP.formatDuration(p.remainingS);
+  $n('navArrive').textContent = 'Arrive at ' + new Date(p.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  $n('navRoad').textContent = p.currentRoad ? 'On ' + p.currentRoad : '';
+  document.querySelectorAll('.sim-step-item').forEach((it) => {
+    const i = +it.id.split('_')[1];
+    it.classList.toggle('active-step', i === p.nextIndex);
+    it.classList.toggle('done-step', i < p.nextIndex);
+  });
+}
+
+function navStart() {
+  if (isNaN(tLat) || isNaN(tLng)) { qflowToast('Choose a destination first.', 'warn'); return; }
+  navSimModal.classList.add('active');
+  navEnsureMap();
+  setTimeout(() => navCamera.resize(), 50);
+  $n('navArrived').hidden = true;
+  $n('navDest').textContent = to;
+  $n('simMainInstruction').textContent = 'Getting your location…';
+  $n('simSubInstruction').textContent = 'Navigation starts from your real GPS position';
+  $n('simManeuverIcon').textContent = '📍';
+  navStatus('');
+  navClearLayers();
+  navCamera.reset();
+  qflowNavDevice.keepAwake(true);
+  if (navCtl) navCtl.stop();
+  if (navLoc) navLoc.stop();
+  navLoc = QFlowNavLocation.createLocationService({ geolocation: navigator.geolocation, document, window });
+  navCtl = QFlowNavController.createNavigationController({
+    progress: NP, routing: qflowRoutingService, location: navLoc, compass: () => navLoc.compass(),
+    voice: { speak: (t) => qflowNavDevice.speak(t) },
+    ui: {
+      onPhase: (ph, info) => {
+        if (ph === 'routing') navStatus('Calculating a road route from your position…');
+        else if (ph === 'navigating') navStatus('');
+        else if (ph === 'rerouting') navStatus('Rerouting from your current position…', 'warn');
+        else if (ph === 'error') { navStatus(info.message || 'Navigation could not start.', 'error'); $n('simMainInstruction').textContent = 'Navigation paused'; }
+      },
+      onFix: (f, v) => { navShowFix(f, v.weak); if (navCtl.phase !== 'navigating') navCamera.update(f, null, f.speed); },
+      onRoute: (r, why) => {
+        navDrawRoute(r);
+        if (why === 'reroute') qflowToast('New route from your current position.', 'success');
+        $n('navProviderAttrib').textContent = (qflowStreetTiles().provider === 'tomtom' ? ' · Map © TomTom' : '') + (r.provider === 'tomtom' ? ' · Route & traffic © TomTom' : ' · Route: OSRM');
+      },
+      onProgress: navShowProgress,
+      onStatus: (st) => {
+        if (st.code === 'ok') { if (navCtl && navCtl.phase === 'navigating') navStatus(''); return; }
+        navStatus(st.message, st.code === 'weak' || st.code === 'lost' || st.code === 'searching' || st.code === 'paused' ? 'warn' : 'error');
+      },
+      onMessage: (m, kind) => navStatus(m, kind === 'error' ? 'error' : 'warn'),
+      onArrived: () => {
+        qflowNavDevice.keepAwake(false);
+        $n('simManeuverIcon').textContent = '🏁';
+        $n('simMainInstruction').textContent = 'You have arrived';
+        $n('simSubInstruction').textContent = to;
+        $n('simRemainingDist').textContent = '0 m';
+        $n('simEta').textContent = '0 min';
+        $n('navArrivedText').textContent = to + (navCtl.rerouteCount ? ' · rerouted ' + navCtl.rerouteCount + '×' : '');
+        $n('navArrived').hidden = false;
+        navStatus('');
+        qflowToast('You have arrived', 'success');
+      }
+    }
+  });
+  // The selected route is reused only if your real position is on it; otherwise a new
+  // route is calculated from your GPS position (nav-controller.js beginRouting).
+  navCtl.start({ lat: tLat, lng: tLng, label: to }, {
+    preview: QFlowNavRouting.fromQflowRoute(selectedRoute),
+    via: stops,
+    routeOptions: { travelMode: vehicleType === 'bike' ? 'motorcycle' : 'car' }
+  });
+}
+
+// Removes the previous trip's marker, accuracy circle, route lines and steps.
+function navClearLayers() {
+  [navUserMarker, navAccCircle, navRouteLine, navDoneLine, navDestMarker].forEach((l) => { if (l && navMap) navMap.removeLayer(l); });
+  navUserMarker = navAccCircle = navRouteLine = navDoneLine = navDestMarker = null;
+  $n('simStepsList').innerHTML = '';
+  ['simSpeed', 'simRemainingDist', 'simEta'].forEach((id) => { $n(id).textContent = '–'; });
+  $n('navArrive').textContent = 'Arrive at –';
+  $n('navRoad').textContent = '';
+  $n('navGpsBadge').textContent = 'GPS: waiting';
+}
+
+function navEnd() {
+  if (navCtl) navCtl.stop();
+  qflowNavDevice.keepAwake(false);
+  qflowNavDevice.stopSpeaking();
+  navSimModal.classList.remove('active');
+}
+
+document.getElementById('startNavBtn').onclick = () => {
+  if (!selectedRoute) return;
+  qflowAudio.playQuantumSweep();
+  // Explain before the first location prompt (same rationale as the rest of the app).
+  if (localStorage.getItem(QFLOW_LOC_RATIONALE_KEY) === 'accepted') return navStart();
+  qflowLocationRationale().then((ok) => {
+    localStorage.setItem(QFLOW_LOC_RATIONALE_KEY, ok ? 'accepted' : 'declined');
+    if (ok) navStart(); else qflowToast('Navigation needs your location. You can still view the route and steps.', 'warn');
+  });
+};
+$n('closeSimBtn').onclick = navEnd;
+$n('navEndBtn').onclick = navEnd;
+$n('navArrivedClose').onclick = navEnd;
+$n('navRecenterBtn').onclick = () => navCamera.recenter();
+$n('navZoomIn').onclick = () => navCamera.zoomBy(1);
+$n('navZoomOut').onclick = () => navCamera.zoomBy(-1);
+$n('navRerouteBtn').onclick = () => { if (navCtl) navCtl.reroute(); };
+$n('navCompassBtn').onclick = () => {
+  const up = navCamera.toggleOrientation();
+  localStorage.setItem('qflowNavNorthUp', up ? '0' : '1');
+  $n('navCompassBtn').setAttribute('aria-label', 'Map orientation: ' + (up ? 'direction of travel up' : 'north up'));
+  qflowToast(up ? 'Map turns with your direction of travel' : 'North up', 'success');
+};
+const paintVoice = () => {
+  const on = qflowNavDevice.voiceOn();
+  $n('navVoiceBtn').textContent = on ? '🔊 Voice on' : '🔇 Voice off';
+  $n('navVoiceBtn').setAttribute('aria-pressed', on ? 'true' : 'false');
+};
+$n('navVoiceBtn').onclick = () => { qflowNavDevice.setVoice(!qflowNavDevice.voiceOn()); paintVoice(); };
+paintVoice();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && navSimModal.classList.contains('active')) qflowNavDevice.resumeAwake(); });
+</script>
+<script src="mode.js"></script>
+</body>
+</html>

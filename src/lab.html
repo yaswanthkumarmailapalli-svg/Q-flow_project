@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>/* Theme before first paint: stored choice, else the system preference; plus the saved accent (see ui.js). */
+try{var d=document.documentElement,t=localStorage.getItem('qflowTheme'),a=localStorage.getItem('qflowAccent');if(t!=='day'&&t!=='dusk')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'day':'dusk';d.setAttribute('data-theme',t);d.setAttribute('data-accent',/^(blue|teal|green|violet|amber|rose|graphite)$/.test(a)?a:'blue')}catch(e){}</script>
+<title>Research Lab — Q-FLOW</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.lab-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:16px;margin-top:16px}
+.lab-grid > *{min-width:0}
+.lab-card{padding:18px}
+.lab-card h2{font-size:18px;margin:0 0 6px}
+.lab-card p.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.row label{font-size:12px;color:var(--muted)}
+.row label{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.row select,.row input{background:var(--surface);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--radius);padding:6px 8px;min-height:40px;font-size:15px;max-width:100%}
+#bOut{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.t{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+table.t th,table.t td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t th{color:var(--muted);font-size:12px;border-bottom-color:var(--line-strong)}
+table.t tr.best td{color:var(--accent-text);font-weight:800}
+canvas{width:100%;display:block}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:8px;margin-top:10px}
+.kpi{background:var(--surface2);border:1px solid var(--line);border-radius:var(--radius);padding:10px;text-align:center;min-width:0}
+.kpi b{display:block;font-size:20px;color:var(--text-bright)}.kpi span{font-size:12px;color:var(--muted)}
+.note{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.55}
+#cvLegend{display:flex;flex-wrap:wrap;gap:6px 14px}#cvLegend span{display:inline-flex;align-items:center;gap:6px;color:var(--text);font-weight:700}
+pre.form{background:var(--surface2);border:1px solid var(--line);padding:12px;border-radius:var(--radius);font-size:12.5px;overflow:auto;font-family:var(--font-mono);line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<nav class="nav" id="nav">
+    <a class="brand" href="index.html"><div class="logo-badge">Q</div><span>Q-FLOW</span></a>
+    <div class="nav-menu" id="navMenu">
+      <div class="links">
+    <a href="index.html">Home</a><a href="plan.html">Plan a Trip</a><a class="judge-only" href="vrp.html">Fleet VRP</a>
+    <a class="active judge-only" href="lab.html">Research Lab</a><a href="network.html">Road Status</a><a href="incidents.html">Road Alerts</a>
+  </div>
+      <div class="nav-right"></div>
+    </div>
+    <div class="nav-quick">
+      <button class="theme-toggle" type="button" aria-label="Appearance settings"><span class="theme-ico" aria-hidden="true"></span><span class="theme-label">Theme</span></button>
+      <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="navMenu" aria-expanded="false">☰</button>
+    </div>
+  </nav>
+
+<main class="page">
+  <div class="page-title"><div>
+    <div class="eyebrow">SIH26137 • FORMULATION, BENCHMARKS &amp; VALIDATION</div>
+    <h1>Research Lab</h1>
+    <p>Everything a jury asks for: the math model, QPSO vs exact / PSO / GA / ACO / SA with statistics, shortest path on the road graph, and live re-planning when traffic changes.</p>
+  </div></div>
+
+  <section class="form-card lab-card" style="margin-top:0">
+    <h2>1. Mathematical formulation (CVRPTW on a weighted graph)</h2>
+<pre class="form">G = (V, E, w)     V = {0 (depot), 1..n customers},  E = road segments
+t_ij = t0_ij · (1 + 0.15 · (v/c)^4) + δ_ij      BPR congestion + incident delay
+minimise  F = Σ d_ij·x_ij + 0.4·Σ T_k + λ_cap·Σ max(0, L_k − Q) + λ_tw·Σ max(0, a_i − due_i) + λ_fleet·max(0, K_used − K)
+subject to  each customer visited exactly once;  L_k = Σ demand_i ≤ Q (capacity);  a_i ≤ due_i (time window);  ≤ K vehicles
+QPSO (quantum-inspired, classical):  p = φ·pbest + (1−φ)·gbest;   x ← p ± α·|mbest − x|·ln(1/u),   α: 0.95 → 0.5   (Sun et al. 2004)
+      + Lamarckian 2-opt / or-opt local search and heuristic seeding
+Constraints are handled by fixed penalty weights inside F; solutions are decoded from random keys.</pre>
+  </section>
+
+  <div class="lab-grid">
+    <section class="form-card lab-card">
+      <h2>2. Statistical benchmark vs exact optimum</h2>
+      <p class="sub">Repeated independent runs. Optimality gap is measured against exhaustive search (exact) on the same instance.</p>
+      <div class="row">
+        <label>Customers <select id="bN"><option>6</option><option selected>8</option><option>9</option><option>15</option><option>25</option><option>50</option></select></label>
+        <label>Runs <select id="bR"><option>5</option><option selected>10</option><option>20</option></select></label>
+        <label>Traffic (V/C) <input id="bT" type="number" step="0.1" min="0" max="3" value="1.4" style="width:76px"></label>
+        <button class="primary mini-btn" id="bGo">Run benchmark</button>
+      </div>
+      <div id="bOut" class="note">Press “Run benchmark”. Exact solver runs only up to 9 customers (n! growth) — beyond that gaps are relative to the best found.</div>
+    </section>
+
+    <section class="form-card lab-card">
+      <h2>3. Convergence analysis</h2>
+      <p class="sub">Mean best-cost per iteration across runs (lower is better).</p>
+      <canvas id="cv" height="260"></canvas>
+      <div id="cvLegend" class="note"></div>
+    </section>
+
+    <section class="form-card lab-card">
+      <h2>4. Shortest path on a congested road graph</h2>
+      <p class="sub">8×8 city grid, BPR travel times. Dijkstra gives the exact answer; QPSO is checked against it.</p>
+      <div class="row">
+        <label>Congestion <select id="gC"><option value="0.6">Light</option><option value="1.2" selected>Moderate</option><option value="2">Heavy</option></select></label>
+        <button class="primary mini-btn" id="gGo">New graph &amp; solve</button>
+      </div>
+      <canvas id="gv" height="300"></canvas>
+      <div id="gOut" class="kpis"></div>
+    </section>
+
+    <section class="form-card lab-card">
+      <h2>5. Dynamic re-optimisation</h2>
+      <p class="sub">Plan under normal traffic, then a congestion shock hits. Keep the old plan, or re-plan with QPSO?</p>
+      <div class="row">
+        <label>Normal V/C <input id="dA" type="number" step="0.1" min="0" max="3" value="0.8" style="width:76px"></label>
+        <label>Shock V/C <input id="dB" type="number" step="0.1" min="0" max="3" value="1.9" style="width:76px"></label>
+        <button class="primary mini-btn" id="dGo">Simulate shock</button>
+      </div>
+      <div id="dOut" class="note">Uses 15 random delivery stops with time windows.</div>
+    </section>
+  </div>
+</main>
+<footer>Q-FLOW • SIH26137 Research Lab</footer>
+
+<script src="safe-html.js"></script>
+<script src="net.js"></script>
+<script src="emissions.js"></script>
+<!-- Q-FLOW app modules (order matters; formerly app.js) -->
+<script src="local-config.js"></script>
+<script src="config.js"></script>
+<script src="ui.js"></script>
+<script src="i18n.js"></script>
+<script src="location.js"></script>
+<script src="geocode.js"></script>
+<script src="routing.js"></script>
+<script src="traffic-live.js"></script>
+<script src="swarm-sim.js"></script>
+<script src="map.js"></script>
+<script src="trips.js"></script>
+<script src="vrp-engine.js"></script>
+<script src="vrp-extras.js"></script>
+<script>
+qflowInitChrome();
+const $ = id => document.getElementById(id);
+// Monochrome series per algorithm (shade + dash; same mapping as the Fleet VRP page).
+const SERIES = {QPSO:0, GA:1, ACO:2, SA:3, PSO:4};
+let lastConv = null, lastGraph = null; // redrawn on theme change / resize
+const tick = () => new Promise(r => setTimeout(r, 30));
+// Show any engine or input error in the tool's own output area instead of failing silently.
+const guarded = (outId, fn) => async (...args) => {
+  try { await fn(...args); } catch (e) { console.error(e); $(outId).innerHTML = qflowErrorHtml(e); }
+};
+const fmt = (x,d=1) => x.toFixed(d);
+
+$('bGo').onclick = guarded('bOut', async () => {
+  let tr;
+  try { tr = qflowReadNumber($('bT'), { min: 0, max: 3, label: 'Traffic (V/C)' }); }
+  catch (e) { $('bOut').innerHTML = qflowErrorHtml(e); return; }
+  const n = +$('bN').value, runs = +$('bR').value;
+  $('bOut').textContent = 'Running…'; await tick();
+  const nodes = QFlowVRP.generateBenchmarkInstance(n), m = QFlowVRP.buildCostMatrix(nodes, tr);
+  const veh = Math.max(2, Math.ceil(n/6)), cap = 80;
+  const r = QFlowExtras.multiRun(nodes, m, cap, veh, runs, {}, n<=9); // same evaluation budget for every algorithm
+  const ref = r.reference.cost; // exact optimum, or best cost found by any method (Clarke-Wright included)
+  const bestMean = Math.min(...Object.values(r.algos).map(a=>a.cost.mean));
+  let h = `<table class="t"><tr><th>Algorithm</th><th>Mean</th><th>Std</th><th>Best</th><th>Worst</th><th>Gap %</th><th>Feasible runs</th><th>ms</th><th>Evals</th></tr>`;
+  if (r.exact) h += `<tr><td>Exact (all orders enumerated)</td><td>${fmt(r.exact.bestCost,2)}</td><td>0</td><td>${fmt(r.exact.bestCost,2)}</td><td>${fmt(r.exact.bestCost,2)}</td><td>0.00</td><td>${r.exact.feasible ? 'yes' : 'no'}</td><td>${fmt(r.exact.executionTimeMs,0)}</td><td>${r.exact.evaluated.toLocaleString()}</td></tr>`;
+  for (const [k,a] of Object.entries(r.algos)) h += `<tr class="${a.cost.mean===bestMean?'best':''}"><td>${k}</td><td>${fmt(a.cost.mean,2)}</td><td>${fmt(a.cost.std,2)}</td><td>${fmt(a.cost.best,2)}</td><td>${fmt(a.cost.worst,2)}</td><td>${fmt(ref > 0 ? (a.cost.mean-ref)/ref*100 : 0,2)}</td><td>${a.feasibleRatePct}%</td><td>${fmt(a.timeMs,0)}</td><td>${a.evaluations.toLocaleString()}</td></tr>`;
+  const cw = r.clarkeWright;
+  if (cw) h += `<tr><td>Clarke-Wright savings<div style="font-size:12px;color:var(--muted)">greedy constructive heuristic, 1 deterministic run. ${escapeHtml(cw.notes.join(' '))}</div></td><td>${fmt(cw.mean,2)}</td><td>—</td><td>${fmt(cw.best,2)}</td><td>${fmt(cw.worst,2)}</td><td>${fmt(ref > 0 ? (cw.mean-ref)/ref*100 : 0,2)}</td><td>${cw.feasibleRatePct}%</td><td>${fmt(cw.meanTimeMs,1)}</td><td>—</td></tr>`;
+  $('bOut').innerHTML = h + `</table><div class="note">${n} customers, ${veh} vehicles, ${runs} seeded runs each, ${r.maxEvaluations.toLocaleString()} objective evaluations per run for every algorithm. Bold = best metaheuristic mean. "Feasible runs" = runs whose plan has no capacity overload, no lateness (including the depot's closing time) and no extra vehicles. Traffic is simulated. Gap is vs ${r.exact?'the exact optimum (every customer order, each cut into at most '+veh+' routes at the cheapest break points; '+r.exact.evaluated.toLocaleString()+' orders checked)':'the best solution any method found'}. All methods are classical code running in your browser.</div>`;
+  drawConv(r.algos);
+});
+
+function drawConv(algos){
+  lastConv = algos;
+  const c = $('cv'), {ctx, W, H} = qflowFitCanvas(c, 260), pl=46, pb=22; ctx.clearRect(0,0,W,H);
+  const curve = a => a.convergenceByEvals ? a.convergenceByEvals.cost : a.convergence;
+  const all = Object.values(algos).flatMap(curve), lo=Math.min(...all), hi=Math.max(...all), rng=(hi-lo)||1;
+  const css = getComputedStyle(document.documentElement);
+  ctx.strokeStyle = qflowCssVar('--line','#888'); ctx.fillStyle = css.getPropertyValue('--muted')||'#888'; ctx.font='12px system-ui, sans-serif';
+  for(let i=0;i<=4;i++){const y=10+(H-pb-10)*i/4; ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W,y);ctx.stroke(); ctx.fillText((hi-rng*i/4).toFixed(0),4,y+4);}
+  ctx.fillText('evaluations →',W-80,H-6);
+  let leg='';
+  for(const [k,a] of Object.entries(algos)){
+    const si = SERIES[k] !== undefined ? SERIES[k] : 5, st = qflowSeries(si);
+    ctx.strokeStyle=st.color; ctx.lineWidth=st.width; ctx.setLineDash(st.dash); ctx.beginPath();
+    const cv = curve(a);
+    cv.forEach((v,i)=>{const x=pl+(W-pl-6)*i/(cv.length-1), y=10+(H-pb-10)*(1-(v-lo)/rng); i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+    ctx.stroke(); ctx.setLineDash([]); leg+=`<span>${qflowSwatch(si)}${escapeHtml(k)}</span>`;
+  }
+  $('cvLegend').innerHTML = leg;
+}
+
+let G;
+function drawGraph(g, dj, qs){
+  lastGraph = [g, dj, qs];
+  const c=$('gv'), {ctx, W, H} = qflowFitCanvas(c, Math.min(300, Math.max(220, c.clientWidth * 0.7))),
+    px=i=>{const p=g.coord(i);return [20+(W-40)*p.c/(g.cols-1),20+(H-40)*p.r/(g.rows-1)];};
+  const accent = qflowCssVar('--accent','#808080'), ink = qflowCssVar('--text-bright','#808080'), bg = qflowCssVar('--surface','#fff'),
+    jam = qflowCssVar('--danger','#808080'), busy = qflowCssVar('--warn','#808080'), free = qflowCssVar('--s4','#808080');
+  ctx.clearRect(0,0,W,H);
+  for(let u=0;u<g.N;u++)for(const e of g.adj[u]) if(e.to>u){
+    const [x1,y1]=px(u),[x2,y2]=px(e.to), f=e.time/e.dist; // slower = darker, heavier edge
+    ctx.strokeStyle = f>3?jam:f>2.3?busy:free; ctx.lineWidth = f>3?2.4:f>2.3?1.6:1; ctx.setLineDash(f>2.3&&f<=3?[4,3]:[]);
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke(); ctx.setLineDash([]);}
+  const path=(p,col,w,dash)=>{ctx.strokeStyle=col;ctx.lineWidth=w;ctx.setLineDash(dash);ctx.beginPath();p.forEach((n,i)=>{const [x,y]=px(n);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke();ctx.setLineDash([]);};
+  ctx.globalAlpha = 0.45; path(dj.path,accent,8,[]); ctx.globalAlpha = 1; path(qs.path,ink,2.5,[6,4]);
+  for(const n of [0,g.N-1]){const [x,y]=px(n);ctx.fillStyle=accent;ctx.strokeStyle=bg;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,7,0,7);ctx.fill();ctx.stroke();}
+}
+$('gGo').onclick = guarded('gOut', async () => {
+  $('gOut').innerHTML='<div class="note">Solving…</div>'; await tick();
+  const g = QFlowExtras.makeGridGraph(8,8,{congestion:+$('gC').value}), d = QFlowExtras.dijkstra(g,0,63), q = QFlowExtras.qpsoShortestPath(g,0,63);
+  drawGraph(g,d,q);
+  const gap=(q.cost-d.cost)/d.cost*100;
+  $('gOut').innerHTML = `<div class="kpi"><b>${fmt(d.cost,2)} min</b><span>Dijkstra (exact) · ${fmt(d.executionTimeMs,1)} ms</span></div><div class="kpi"><b>${fmt(q.cost,2)} min</b><span>QPSO · ${fmt(q.executionTimeMs,0)} ms</span></div><div class="kpi"><b>${fmt(gap,2)}%</b><span>QPSO gap to optimum</span></div>
+  <div class="note" style="grid-column:1/-1">Wide tinted line = Dijkstra, dashed line = QPSO. Heavier edges are more congested (dashed amber = busy, red = jammed). Dijkstra is faster on a plain shortest-path; QPSO's value is on NP-hard VRP, where no polynomial exact method exists.</div>`;
+});
+
+// Redraw canvases in the new theme's greys and at the new width after a resize.
+function redrawLab(){ if (lastConv) drawConv(lastConv); if (lastGraph) drawGraph(...lastGraph); }
+window.addEventListener('qflow:themechange', redrawLab);
+let _labResizeT = null;
+window.addEventListener('resize', () => { clearTimeout(_labResizeT); _labResizeT = setTimeout(redrawLab, 150); });
+
+$('dGo').onclick = guarded('dOut', async () => {
+  let vA, vB;
+  try {
+    vA = qflowReadNumber($('dA'), { min: 0, max: 3, label: 'Normal V/C' });
+    vB = qflowReadNumber($('dB'), { min: 0, max: 3, label: 'Shock V/C' });
+  } catch (e) { $('dOut').innerHTML = qflowErrorHtml(e); return; }
+  $('dOut').textContent='Simulating…'; await tick();
+  const nodes=QFlowVRP.generateBenchmarkInstance(15), r=QFlowExtras.dynamicReplan(nodes,80,3,vA,vB,{maxIterations:80});
+  $('dOut').innerHTML = `<table class="t"><tr><th>Plan</th><th>Cost</th><th>Time (min)</th><th>Late (min)</th></tr>
+   <tr><td>Original (normal traffic)</td><td>${fmt(r.before.cost)}</td><td>${fmt(r.before.timeMin)}</td><td>—</td></tr>
+   <tr><td>Old plan after shock</td><td>${fmt(r.staleUnderShock.cost)}</td><td>${fmt(r.staleUnderShock.timeMin)}</td><td>${fmt(r.staleUnderShock.lateMin)}</td></tr>
+   <tr class="best"><td>QPSO re-plan (${fmt(r.replanned.ms,0)} ms)</td><td>${fmt(r.replanned.cost)}</td><td>${fmt(r.replanned.timeMin)}</td><td>${fmt(r.replanned.lateMin)}</td></tr></table>
+   <div class="kpis"><div class="kpi"><b>${r.savingPct}%</b><span>lower cost than keeping the old plan (re-plan starts from it, so never worse)</span></div></div>
+   <div class="note">Simulated scenario: 15 random stops, BPR travel times at the two V/C levels. No live traffic.</div>`;
+});
+$('bGo').click(); $('gGo').click(); $('dGo').click();
+</script>
+<script src="mode.js"></script>
+</body></html>

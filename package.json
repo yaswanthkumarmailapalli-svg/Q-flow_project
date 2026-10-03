@@ -1,0 +1,27 @@
+{
+  "name": "qflow-sih26137",
+  "version": "3.0.0",
+  "description": "Q-FLOW: Driver app + Judge view, QPSO traffic balancing - SIH26137",
+  "private": true,
+  "scripts": {
+    "test": "node test/test_vrp.js && node test/test_split.js && node test/test_extras.js && node test/test_insights.js && node test/test_escape.js && node test/test_net.js && node test/test_modules.js && node test/test_emissions.js && node test/test_location.js && node test/test_android.js && node test/test_theme.js && node test/test_robustness.js && node test/test_vrp_page.js && node test/test_fullmap.js && node test/test_live_traffic.js && node test/test_vrp_live.js && node test/test_navigation.js && node test/test_nav_location.js && node test/test_nav_page.js",
+    "bench": "node scripts/compare-algorithms.js --cache .bench-cache --out docs/results.md --readme README.md",
+    "web": "node scripts/serve.js",
+    "build:www": "node scripts/build-www.js",
+    "android:init": "npm run build:www && npx cap add android && node scripts/patch-android.js && npx cap sync android",
+    "android:sync": "npm run build:www && npx cap sync android && node scripts/patch-android.js",
+    "android:open": "npx cap open android",
+    "android:apk": "npm run android:sync && node scripts/build-apk.js",
+    "android:release": "npm run android:sync && node scripts/build-apk.js --release",
+    "android:check": "node scripts/check-apk.js",
+    "tomtom:check": "node scripts/check-tomtom.js"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "leaflet": "1.9.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

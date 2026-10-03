@@ -1,0 +1,11 @@
+const I = require('../src/insights.js');
+const r = { id:'A', distanceKm: 12.4, durationMin: 28, baseDurationMin: 28, signals: 9, co2Grams: 1623 };
+console.log(I.greenWave(r));
+console.log(I.greenWave({distanceKm:3,durationMin:9,signals:1}));
+console.log(I.carpool(r));
+const b = { id:'B', distanceKm: 13.9, durationMin: 30, baseDurationMin: 30, signals: 5, co2Grams: 1745 };
+console.log(I.ecoCompare([r, b]));
+const slow = Object.assign({}, r, { durationMin: 39 });
+console.log(I.explainSwitch(slow, b, 'Accident reported'));
+console.log(I.explainKeep(r, [r, b], 'Balanced'));
+console.log('Webster delay/signal s:', I.webster().toFixed(1));

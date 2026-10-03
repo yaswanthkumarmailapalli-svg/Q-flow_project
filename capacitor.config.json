@@ -1,0 +1,7 @@
+{
+  "appId": "com.qflow.sih26137",
+  "appName": "Q-FLOW",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false }
+}

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>/* Theme before first paint: stored choice, else the system preference; plus the saved accent (see ui.js). */
+try{var d=document.documentElement,t=localStorage.getItem('qflowTheme'),a=localStorage.getItem('qflowAccent');if(t!=='day'&&t!=='dusk')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'day':'dusk';d.setAttribute('data-theme',t);d.setAttribute('data-accent',/^(blue|teal|green|violet|amber|rose|graphite)$/.test(a)?a:'blue')}catch(e){}</script>
+  <title>Road Status (Simulated Traffic) — Q-FLOW</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+<style>
+.surge-box{margin:16px 0 8px;background:var(--surface2);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.surge-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.surge-row select,.surge-row input{background:var(--surface);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--radius);padding:6px 8px;font-size:15px;min-height:40px;max-width:100%}
+.surge-row label{display:inline-flex;align-items:center;gap:6px}
+#surgeOut{overflow-x:auto}
+#surgeOut table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+#surgeOut th,#surgeOut td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:right}
+#surgeOut th:first-child,#surgeOut td:first-child{text-align:left}
+#surgeOut .good{color:var(--success);font-weight:800}#surgeOut .bad{color:var(--muted);font-weight:600}
+#surgeOut .adv{margin-top:10px;font-size:12px;line-height:1.55;color:var(--text)}
+</style>
+</head>
+<body>
+<nav class="nav" id="nav">
+    <a class="brand" href="index.html">
+    <div class="logo-badge">Q</div>
+    <span>Q-FLOW</span>
+  </a>
+    <div class="nav-menu" id="navMenu">
+      <div class="links">
+    <a href="index.html" data-i18n="home">Home</a>
+    <a href="plan.html" data-i18n="plan">Plan a Trip</a>
+    <a class="judge-only" href="vrp.html">Fleet VRP</a>
+    <a class="judge-only" href="lab.html">Research Lab</a>
+    <a class="active" href="network.html" data-i18n="network">Road Status</a>
+    <a href="incidents.html" data-i18n="alerts">Road Alerts</a>
+  </div>
+      <div class="nav-right">
+    <button class="sound-toggle" title="Toggle sound effects">🔊</button>
+    <select class="lang-select" id="langSelect">
+      <option value="en">EN</option>
+      <option value="hi">हिन्दी</option>
+      <option value="te">తెలుగు</option>
+      <option value="ta">தமிழ்</option>
+      <option value="mr">मराठी</option>
+    </select>
+    <a class="mini-btn judge-only" href="vrp.html">Fleet VRP →</a>
+  </div>
+    </div>
+    <div class="nav-quick">
+      <button class="theme-toggle" type="button" aria-label="Appearance settings"><span class="theme-ico" aria-hidden="true"></span><span class="theme-label">Theme</span></button>
+      <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="navMenu" aria-expanded="false">☰</button>
+    </div>
+  </nav>
+
+<main class="page">
+  <div class="page-title">
+    <div>
+      <div class="judge-only eyebrow">SIMULATED TRAFFIC ASSIGNMENT</div>
+      <h1>How busy are the roads?</h1>
+      <p id="netSourceNote"><span class="live-badge" title="No live traffic feed is connected">SIMULATED TRAFFIC</span> Four example corridors with assumed volumes and capacities. Nothing on this page is live traffic data.</p>
+      <p class="judge-only">Quantum-inspired <b>QPSO (Quantum-Behaved Particle Swarm Optimization)</b>, a classical algorithm, minimizing network delay under dynamic <b>Bureau of Public Roads (BPR)</b> non-linear congestion equations.</p>
+    </div>
+    <div class="judge-only live-badge" style="font-size:13px; padding:6px 14px;">
+      ● BPR MODEL (SIMULATED) <span style="margin-left:6px; color:var(--muted2); font-size:12px;" id="updatedAgo">· updated just now</span>
+    </div>
+  </div>
+
+  <section class="live-grid">
+    <div class="map-frame">
+      <div class="map-frame-head">
+        <span>DYNAMIC ARTERIAL GRID (REAL BPR CORRIDOR LOADS)</span>
+        <span class="live-badge" id="corridorFluxBadge">● 4000 VEH/HR DEMAND</span>
+      </div>
+      <div class="map-box" id="liveMap"></div>
+      <div class="map-legend">
+        <span><i class="leg-line sw-flow-free" aria-hidden="true"></i>Free flow</span>
+        <span><i class="leg-line sw-flow-busy" aria-hidden="true"></i>Busy</span>
+        <span><i class="leg-line sw-flow-jam" aria-hidden="true"></i>Jammed</span>
+      </div>
+
+      <div class="btn-row" style="padding:14px 16px; background:var(--surface2); border-top:1px solid var(--line);">
+        <button class="secondary" id="congestBtn">🚨 Inject Traffic Jam</button>
+        <button class="secondary" id="weatherBtn">🌧️ Inject Waterlogging</button>
+        <button class="secondary" id="greenWaveBtn">🚑 Dispatch Green Corridor</button>
+        <button class="secondary" id="resetGridBtn" style="border-color:var(--fg);">✓ Reset Equilibrium</button>
+      </div>
+    </div>
+
+    <aside class="side-panel">
+      <div class="row-between">
+        <h2 style="margin:0; font-size:20px;">QPSO Traffic Engine</h2>
+        <span class="judge-only live-badge">QPSO CORE #01</span>
+      </div>
+
+      <div class="judge-only telemetry-box">
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px 10px; font-size:13px;">
+          <span style="color:var(--muted);">Total System Delay (BPR TSTT)</span>
+          <b style="color:var(--brand);" id="energyScore">Delay: 142.6 veh-hrs</b>
+        </div>
+        <canvas class="telemetry-chart" id="energyCanvas"></canvas>
+      </div>
+
+      <div class="health">
+        <span title="How closely the particles agree on the best traffic split (measured from the swarm)">Swarm agreement (QPSO)</span>
+        <b id="flow" style="color:var(--brand2);">Equilibrium (98%)</b>
+        <div class="meter"><i id="meter" style="width:98%;"></i></div>
+      </div>
+
+      <div class="health">
+        <span>Active Arterial Corridors</span>
+        <b id="busy">4 Arteries Balanced</b>
+      </div>
+
+      <div class="health">
+        <span>Average Corridor Speed</span>
+        <b id="open" style="color:var(--brand);">38.4 km/h</b>
+      </div>
+
+      <div style="margin:16px 0 8px;">
+        <h4 style="margin:0 0 6px; font-size:13.5px; color:var(--muted);">QPSO Algorithmic Dispatch</h4>
+        <div class="judge-only decision" id="decision" style="background:var(--surface2); border:1px solid var(--line); padding:14px; border-radius:var(--radius-lg); font-size:12.5px; line-height:1.5; color:var(--text);">
+          Quantum-inspired QPSO iteration #42 converged. Total system travel time minimized across all 4 corridors.
+        </div>
+      </div>
+
+
+      <div class="surge-box" id="surgeBox">
+        <h4 style="margin:0 0 4px; font-size:14px;">🎟️ Event surge predictor</h4>
+        <p style="margin:0 0 10px; color:var(--muted); font-size:12px; line-height:1.5;">Crowds leave together. Q-FLOW spreads nearby vehicles <b>before</b> the exit rush instead of reacting to the jam.</p>
+        <div class="surge-row">
+          <select id="evType">
+            <option value="500|Movie hall">🎬 Movie hall (~500 cars)</option>
+            <option value="1200|Concert">🎤 Concert (~1,200 cars)</option>
+            <option value="1600|Festival / fair">🎪 Festival (~1,600 cars)</option>
+            <option value="2000|Cricket match" selected>🏏 Cricket match (~2,000 cars)</option>
+          </select>
+          <label>Ends in <input type="number" id="evMins" value="30" min="5" max="180" style="width:72px"> min</label>
+        </div>
+        <button class="primary wide" id="surgeBtn" style="margin-top:8px;">Predict &amp; pre-spread</button>
+        <div id="surgeOut"></div>
+      </div>
+
+      <a class="primary wide judge-only" href="vrp.html" style="margin-top:10px;">
+        <span>⚛️</span> Launch Multi-Vehicle Fleet VRP
+      </a>
+    </aside>
+  </section>
+</main>
+
+<footer>
+  Q-FLOW • SIH26137 Quantum-Inspired Intelligent Traffic Route Optimization
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="safe-html.js"></script>
+<script src="net.js"></script>
+<script src="emissions.js"></script>
+<!-- Q-FLOW app modules (order matters; formerly app.js) -->
+<script src="local-config.js"></script>
+<script src="config.js"></script>
+<script src="ui.js"></script>
+<script src="i18n.js"></script>
+<script src="location.js"></script>
+<script src="geocode.js"></script>
+<script src="routing.js"></script>
+<script src="traffic-live.js"></script>
+<script src="swarm-sim.js"></script>
+<script src="map.js"></script>
+<script src="trips.js"></script>
+<script src="vrp-engine.js"></script>
+<script>
+qflowInitChrome();
+document.getElementById('langSelect').value = qflowLang();
+document.getElementById('langSelect').onchange = e => qflowSetLang(e.target.value);
+
+const map = qflowBuildMap('liveMap', { collapsible: true });
+const lat = parseFloat(localStorage.getItem('qflowLocLat')) || 17.3850;
+const lng = parseFloat(localStorage.getItem('qflowLocLng')) || 78.4867;
+map.setView([lat, lng], 13);
+// With live traffic, say exactly which parts are live (map colours, incident list) and which are not.
+qflowOnLiveTraffic(map, () => {
+  document.getElementById('netSourceNote').innerHTML = '<span class="live-badge live-on" title="Current traffic from TomTom">LIVE TRAFFIC · TOMTOM</span> The road colours on the map and the incident list are live data from TomTom. The four corridors and the QPSO traffic assignment below are still a simulation with assumed volumes and capacities.';
+});
+
+let corridorLayers = [];
+let disturbanceLayer = null;
+
+// --- 4 Real Arterial Corridors with Capacity and Base Free-flow Times ---
+let arteries = [
+  { id: 1, name: 'Arterial North-East', cap: 1200, t0: 14.0, volume: 1000, incident: 0, coords: [[lat-0.015, lng-0.018], [lat+0.015, lng+0.018]] },
+  { id: 2, name: 'Arterial South-East', cap: 1100, t0: 15.0, volume: 950, incident: 0, coords: [[lat+0.015, lng-0.018], [lat-0.015, lng+0.018]] },
+  { id: 3, name: 'Central Express Bypass', cap: 1600, t0: 11.5, volume: 1350, incident: 0, coords: [[lat, lng-0.022], [lat, lng+0.022]] },
+  { id: 4, name: 'Metro Ring Corridor', cap: 1000, t0: 16.0, volume: 700, incident: 0, coords: [[lat-0.020, lng], [lat+0.020, lng]] }
+];
+
+function drawCorridors() {
+  corridorLayers.forEach(l => map.removeLayer(l));
+  corridorLayers = [];
+
+  arteries.forEach(a => {
+    const vcRatio = a.volume / a.cap;
+    const bprDelay = a.t0 * (1 + 0.15 * Math.pow(vcRatio, 4)) + a.incident;
+    // Load level is shown by line weight + dash (legend under the map), not colour.
+    const level = vcRatio > 1.2 ? 'jam' : vcRatio > 0.9 ? 'busy' : 'free';
+    const weight = level === 'jam' ? 9 : level === 'busy' ? 6.5 : 4.5;
+
+    const line = L.polyline(a.coords, { className: 'qf-flow-' + level, weight, opacity: 0.92 }).addTo(map);
+    line.bindPopup(`
+      <b>${escapeHtml(a.name)}</b><br>
+      🚗 Volume: <b>${Math.round(a.volume)} veh/h</b> (Cap: ${a.cap})<br>
+      🚦 V/C Ratio: <b>${vcRatio.toFixed(2)}</b><br>
+      ⏱️ Travel Time: <b>${bprDelay.toFixed(1)} min</b> (Free-flow: ${a.t0}m)
+    `);
+    corridorLayers.push(line);
+  });
+}
+drawCorridors();
+
+// --- True QPSO for System-Optimal Traffic Assignment ---
+// Minimizes Total System Travel Time (TSTT) = sum(v_e * t_e(v_e))
+const BASE_DEMAND = 4000;
+let TOTAL_DEMAND = BASE_DEMAND; // total veh/hr to distribute across 4 corridors (rises during an event surge)
+let qpsoIteration = 0;
+let tsttHistory = [];
+
+// QPSO Particle Swarm initialized
+const swarmSize = 18;
+const dim = 4;
+let particles = [];
+let gBestPos = [0.25, 0.25, 0.35, 0.15];
+let gBestCost = Infinity;
+
+function evaluateTSTT(fractions) {
+  // Normalize fractions so sum = 1
+  const sum = fractions.reduce((s, x) => s + Math.max(0.01, x), 0);
+  let totalDelay = 0;
+
+  for (let i = 0; i < 4; i++) {
+    const v = (Math.max(0.01, fractions[i]) / sum) * TOTAL_DEMAND;
+    const a = arteries[i];
+    const vc = v / a.cap;
+    const t = a.t0 * (1 + 0.15 * Math.pow(vc, 4)) + a.incident;
+    totalDelay += (v * t) / 60.0; // vehicle-hours
+  }
+  return totalDelay;
+}
+
+for (let p = 0; p < swarmSize; p++) {
+  const pos = [Math.random(), Math.random(), Math.random(), Math.random()];
+  const cost = evaluateTSTT(pos);
+  particles.push({
+    pos,
+    pBestPos: pos.slice(),
+    pBestCost: cost
+  });
+  if (cost < gBestCost) {
+    gBestCost = cost;
+    gBestPos = pos.slice();
+  }
+}
+tsttHistory.push(gBestCost);
+
+// Canvas Telemetry chart
+const energyCanvas = document.getElementById('energyCanvas');
+const eCtx = energyCanvas.getContext('2d');
+// The drawing buffer is sized to the canvas's rendered width at each draw (qflowFitCanvas).
+
+function drawEnergyGraph() {
+  if (!energyCanvas.clientWidth) return; // hidden (Driver view)
+  const { W, H } = qflowFitCanvas(energyCanvas, 120);
+  eCtx.clearRect(0, 0, W, H);
+  if (tsttHistory.length < 2) return;
+
+  eCtx.strokeStyle = qflowCssVar('--accent','#808080');
+  eCtx.lineWidth = 2.5;
+  eCtx.beginPath();
+
+  const max = Math.max(...tsttHistory, 1);
+  const min = Math.min(...tsttHistory, 0);
+  const span = max - min || 1;
+  const stepX = W / (tsttHistory.length - 1);
+
+  tsttHistory.forEach((val, i) => {
+    const x = i * stepX;
+    const y = H - ((val - min) / span) * (H - 20) - 10;
+    if (i === 0) eCtx.moveTo(x, y);
+    else eCtx.lineTo(x, y);
+  });
+  eCtx.stroke();
+
+  eCtx.lineTo(W, H);
+  eCtx.lineTo(0, H);
+  eCtx.fillStyle = qflowCssVar('--accent-soft', 'rgba(128,128,128,0.12)');
+  eCtx.fill();
+}
+window.addEventListener('qflow:themechange', drawEnergyGraph);
+window.addEventListener('resize', drawEnergyGraph);
+
+function qpsoStep() {
+  qpsoIteration++;
+  const alpha = 0.95 - (qpsoIteration % 50 / 50) * 0.45;
+
+  // Mean Best mbest
+  const mBest = [0, 0, 0, 0];
+  for (let d = 0; d < dim; d++) {
+    let sum = 0;
+    for (let p = 0; p < swarmSize; p++) sum += particles[p].pBestPos[d];
+    mBest[d] = sum / swarmSize;
+  }
+
+  // QPSO (quantum-inspired) position update
+  particles.forEach(p => {
+    for (let d = 0; d < dim; d++) {
+      const phi = Math.random();
+      const pAttractor = phi * p.pBestPos[d] + (1 - phi) * gBestPos[d];
+      const u = Math.random();
+      const lnU = Math.log(1 / Math.max(1e-8, u));
+      const step = alpha * Math.abs(mBest[d] - p.pos[d]) * lnU;
+
+      if (Math.random() > 0.5) p.pos[d] = pAttractor + step;
+      else p.pos[d] = pAttractor - step;
+
+      p.pos[d] = Math.max(0.05, Math.min(1.0, p.pos[d]));
+    }
+
+    const cost = evaluateTSTT(p.pos);
+    if (cost < p.pBestCost) {
+      p.pBestCost = cost;
+      p.pBestPos = p.pos.slice();
+    }
+    if (cost < gBestCost) {
+      gBestCost = cost;
+      gBestPos = p.pos.slice();
+    }
+  });
+
+}
+
+function reevaluateSwarm() { // costs change when demand/incidents change, so re-score the swarm
+  gBestCost = Infinity;
+  particles.forEach(p => {
+    p.pBestCost = evaluateTSTT(p.pBestPos);
+    if (p.pBestCost < gBestCost) { gBestCost = p.pBestCost; gBestPos = p.pBestPos.slice(); }
+  });
+}
+
+function tickQPSO() {
+  qpsoStep();
+  tsttHistory.push(gBestCost);
+  if (tsttHistory.length > 30) tsttHistory.shift();
+
+  // Apply gBest to active corridor volumes
+  const gSum = gBestPos.reduce((s, x) => s + x, 0);
+  arteries.forEach((a, i) => {
+    a.volume = (gBestPos[i] / gSum) * TOTAL_DEMAND;
+  });
+  drawCorridors();
+
+  // UI Metrics update
+  document.getElementById('energyScore').textContent = 'Delay: ' + gBestCost.toFixed(1) + ' veh-hrs';
+  const hasIncident = arteries.some(a => a.incident > 0);
+  // Measured, not invented: how closely each particle's best traffic split matches
+  // the swarm's best split (1 - half the mean L1 distance between share vectors).
+  const shares = (v) => { const t = v.reduce((s, x) => s + Math.max(0.01, x), 0); return v.map(x => Math.max(0.01, x) / t); };
+  const g = shares(gBestPos);
+  const meanL1 = particles.reduce((s, p) => s + shares(p.pBestPos).reduce((a, x, i) => a + Math.abs(x - g[i]), 0), 0) / Math.max(1, particles.length);
+  const convergencePct = Math.round(100 * Math.max(0, 1 - meanL1 / 2));
+
+  document.getElementById('meter').style.width = convergencePct + '%';
+  document.getElementById('flow').textContent = (hasIncident ? 'Re-Routing (' : 'Stable (') + convergencePct + '%)';
+  document.getElementById('flow').style.color = hasIncident ? 'var(--warn)' : 'var(--brand2)';
+
+  const avgSpeed = (45 / (1 + (gBestCost / 120) * 0.25)).toFixed(1);
+  document.getElementById('open').textContent = avgSpeed + ' km/h';
+
+  document.getElementById('decision').textContent = `QPSO iteration #${qpsoIteration} active (quantum-inspired, classical). Redistributed ${Math.round(TOTAL_DEMAND)} veh/hr across 4 corridors minimizing BPR delay.`;
+
+  drawEnergyGraph();
+}
+tickQPSO();
+setInterval(tickQPSO, 1200);
+
+let lastUpdate = Date.now();
+setInterval(() => {
+  document.getElementById('updatedAgo').textContent = '· updated ' + qflowTimeAgo(lastUpdate);
+}, 1000);
+
+
+/* ---------- EVENT SURGE PREDICTION ---------- */
+let venueLayers = [];
+function clearEvent() {
+  venueLayers.forEach(l => map.removeLayer(l)); venueLayers = [];
+  TOTAL_DEMAND = BASE_DEMAND;
+  document.getElementById('corridorFluxBadge').textContent = '● ' + BASE_DEMAND + ' VEH/HR DEMAND';
+  document.getElementById('surgeOut').innerHTML = '';
+}
+const loadOf = (vols) => {
+  let tstt = 0, worst = 0;
+  vols.forEach((v, i) => { const a = arteries[i], vc = v / a.cap; worst = Math.max(worst, vc);
+    tstt += v * (a.t0 * (1 + 0.15 * Math.pow(vc, 4)) + a.incident) / 60; });
+  return { tstt, worst };
+};
+document.getElementById('surgeBtn').onclick = () => {
+  lastUpdate = Date.now(); qflowAudio.playAlert();
+  const [carsStr, label] = document.getElementById('evType').value.split('|');
+  const surge = parseInt(carsStr, 10);
+  const mins = Math.min(180, Math.max(5, parseInt(document.getElementById('evMins').value, 10) || 30));
+  const lead = 15;
+  const endAt = new Date(Date.now() + mins * 60000), advAt = new Date(endAt.getTime() - lead * 60000);
+  const hhmm = d => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Reactive: nobody is told, so most of the crowd takes the road nearest the venue (Central Bypass)
+  const base = [1000, 950, 1350, 700], crowdShare = [0.12, 0.12, 0.66, 0.10];
+  const reactiveVols = base.map((b, i) => b + surge * crowdShare[i]);
+  const reactive = loadOf(reactiveVols);
+
+  // Predictive: QPSO re-solves the assignment for the new total demand ahead of time
+  clearEvent();
+  TOTAL_DEMAND = BASE_DEMAND + surge;
+  reevaluateSwarm();
+  for (let k = 0; k < 150; k++) qpsoStep();
+  const gs = gBestPos.reduce((s, x) => s + x, 0);
+  const predVols = gBestPos.map(x => (x / gs) * TOTAL_DEMAND);
+  const pred = loadOf(predVols);
+  tickQPSO();
+
+  const vc = map.getCenter();
+  venueLayers.push(L.circle([vc.lat + 0.004, vc.lng + 0.006], { radius: 500, className: 'qf-zone qf-zone-dash', fillOpacity: 0.18 })
+    .addTo(map).bindPopup('🎟️ <b>' + escapeHtml(label) + '</b> venue<br>Ends ' + hhmm(endAt)));
+  document.getElementById('corridorFluxBadge').textContent = '● ' + Math.round(TOTAL_DEMAND) + ' VEH/HR (EVENT SURGE)';
+
+  const saving = Math.round((1 - pred.tstt / reactive.tstt) * 100);
+  const moves = arteries.map((a, i) => ({ name: a.name, d: Math.round(predVols[i] - reactiveVols[i]) }))
+    .filter(m => Math.abs(m.d) >= 50).sort((a, b) => a.d - b.d);
+  const from = moves.filter(m => m.d < 0).map(m => m.name + ' (' + m.d + ')').join(', ') || '—';
+  const to = moves.filter(m => m.d > 0).map(m => m.name + ' (+' + m.d + ')').join(', ') || '—';
+  document.getElementById('surgeOut').innerHTML =
+    '<table><tr><th></th><th>Wait &amp; react</th><th>Q-FLOW pre-spread</th></tr>' +
+    '<tr><td>Total delay (veh-hrs)</td><td class="bad">' + reactive.tstt.toFixed(0) + '</td><td class="good">' + pred.tstt.toFixed(0) + '</td></tr>' +
+    '<tr><td>Worst road V/C</td><td class="bad">' + reactive.worst.toFixed(2) + '</td><td class="good">' + pred.worst.toFixed(2) + '</td></tr></table>' +
+    '<div class="adv"><b>Predicted:</b> ' + escapeHtml(label) + ' ends ~<b>' + hhmm(endAt) + '</b> → about <b>+' + surge + ' veh/hr</b> hit the roads at once.<br>' +
+    '<b>Action from ' + hhmm(advAt) + ' (' + lead + ' min before):</b> advise drivers away from <i>' + escapeHtml(from) + '</i> toward <i>' + escapeHtml(to) + '</i> (veh/hr).<br>' +
+    '<b>Result:</b> ' + (saving > 0 ? saving + '% less total delay' : 'similar delay') + ' than reacting after the jam forms.</div>' +
+    '<p style="margin:8px 0 0;font-size:12px;color:var(--muted2)">Simulated demo: event size, crowd exit pattern and corridor capacities are assumed values.</p>';
+  qflowToast('Event surge predicted — pre-spread plan ready.', 'warn');
+};
+
+// Disturbance Controls
+document.getElementById('congestBtn').onclick = () => {
+  lastUpdate = Date.now();
+  qflowAudio.playAlert();
+  if (disturbanceLayer) map.removeLayer(disturbanceLayer);
+
+  const center = map.getCenter();
+  disturbanceLayer = L.circle(center, {
+    radius: 700,
+    className: 'qf-zone',
+    weight: 3,
+    fillOpacity: 0.28
+  }).addTo(map).bindPopup('🚨 <b>Arterial Road Jam:</b> Capacity reduced by 60%').openPopup();
+
+  // Corridor 1 & 2 congested
+  arteries[0].incident = 28;
+  arteries[1].incident = 32;
+  qflowToast('Traffic disturbance injected. QPSO re-equilibrating traffic flows…', 'warn');
+  reevaluateSwarm(); tickQPSO();
+};
+
+document.getElementById('weatherBtn').onclick = () => {
+  lastUpdate = Date.now();
+  qflowAudio.playAlert();
+  if (disturbanceLayer) map.removeLayer(disturbanceLayer);
+
+  const center = map.getCenter();
+  disturbanceLayer = L.circle(center, {
+    radius: 900,
+    className: 'qf-zone qf-zone-dash',
+    weight: 3,
+    fillOpacity: 0.16
+  }).addTo(map).bindPopup('🌧️ <b>Monsoon Waterlogging:</b> Surface friction increased on low corridors').openPopup();
+
+  arteries[1].incident = 20;
+  qflowToast('Severe monsoon flooding registered. QPSO diverting flow to elevated bypass.', 'info');
+  reevaluateSwarm(); tickQPSO();
+};
+
+document.getElementById('greenWaveBtn').onclick = () => {
+  lastUpdate = Date.now();
+  qflowAudio.playQuantumSweep();
+  if (disturbanceLayer) map.removeLayer(disturbanceLayer);
+
+  const center = map.getCenter();
+  disturbanceLayer = L.circle(center, {
+    radius: 1200,
+    className: 'qf-zone qf-zone-dot',
+    weight: 3,
+    fillOpacity: 0.1
+  }).addTo(map).bindPopup('🚑 <b>Emergency Green Wave:</b> Central Express Bypass locked for ambulance').openPopup();
+
+  arteries[2].incident = -5; // Free clear flow
+  qflowToast('Emergency Green Corridor preempted.', 'success');
+  reevaluateSwarm(); tickQPSO();
+};
+
+document.getElementById('resetGridBtn').onclick = () => {
+  lastUpdate = Date.now();
+  qflowAudio.playQuantumSweep();
+  if (disturbanceLayer) {
+    map.removeLayer(disturbanceLayer);
+    disturbanceLayer = null;
+  }
+  arteries.forEach(a => a.incident = 0);
+  clearEvent();
+  qflowToast('Traffic grid restored to nominal equilibrium.', 'success');
+  reevaluateSwarm(); tickQPSO();
+};
+</script>
+<script src="mode.js"></script>
+</body>
+</html>

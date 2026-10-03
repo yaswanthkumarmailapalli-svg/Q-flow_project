@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>/* Theme before first paint: stored choice, else the system preference; plus the saved accent (see ui.js). */
+try{var d=document.documentElement,t=localStorage.getItem('qflowTheme'),a=localStorage.getItem('qflowAccent');if(t!=='day'&&t!=='dusk')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'day':'dusk';d.setAttribute('data-theme',t);d.setAttribute('data-accent',/^(blue|teal|green|violet|amber|rose|graphite)$/.test(a)?a:'blue')}catch(e){}</script>
+  <title>Road Alert Scenarios (Simulated) — Q-FLOW</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="nav" id="nav">
+    <a class="brand" href="index.html">
+    <div class="logo-badge">Q</div>
+    <span>Q-FLOW</span>
+  </a>
+    <div class="nav-menu" id="navMenu">
+      <div class="links">
+    <a href="index.html" data-i18n="home">Home</a>
+    <a href="plan.html" data-i18n="plan">Plan a Trip</a>
+    <a class="judge-only" href="vrp.html">Fleet VRP</a>
+    <a class="judge-only" href="lab.html">Research Lab</a>
+    <a href="network.html" data-i18n="network">Road Status</a>
+    <a class="active" href="incidents.html" data-i18n="alerts">Road Alerts</a>
+  </div>
+      <div class="nav-right">
+    <button class="sound-toggle" title="Toggle sound effects">🔊</button>
+    <select class="lang-select" id="langSelect">
+      <option value="en">EN</option>
+      <option value="hi">हिन्दी</option>
+      <option value="te">తెలుగు</option>
+      <option value="ta">தமிழ்</option>
+      <option value="mr">मराठी</option>
+    </select>
+    <a class="mini-btn judge-only" href="vrp.html">Fleet VRP →</a>
+  </div>
+    </div>
+    <div class="nav-quick">
+      <button class="theme-toggle" type="button" aria-label="Appearance settings"><span class="theme-ico" aria-hidden="true"></span><span class="theme-label">Theme</span></button>
+      <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="navMenu" aria-expanded="false">☰</button>
+    </div>
+  </nav>
+
+<main class="page">
+  <div class="page-title">
+    <div>
+      <div class="eyebrow">DYNAMIC INCIDENT MANAGEMENT</div>
+      <h1>Road Incident Scenarios</h1>
+      <p>Try simulated road events and see how the routing model responds. No live incident, traffic or signal data is connected.</p>
+    </div>
+    <span class="live-badge" title="No live traffic or incident feed is connected">SIMULATION ONLY</span>
+  </div>
+
+  <section class="event-card" id="liveIncidents" hidden style="margin-bottom:clamp(16px,2vw,24px);">
+    <h2 style="margin-top:0;">Live incidents near you <span class="live-badge live-on" style="vertical-align:middle;">LIVE · TOMTOM</span></h2>
+    <ul class="live-list" id="liveIncidentList"><li><small>Loading…</small></li></ul>
+    <p style="margin:10px 0 0; font-size:12.5px; color:var(--muted);">Real accidents, jams, closures and road works reported to TomTom within about 15 km. The scenario cards below are still simulations.</p>
+  </section>
+
+  <section class="incident-grid">
+    <div class="event-card">
+      <div class="event-icon">🚨</div>
+      <h2>Multi-Vehicle Accident</h2>
+      <p>Reduces road capacity by 80% on primary arteries. Q-FLOW algorithm immediately shifts traffic across parallel bypasses.</p>
+      <button class="primary wide" id="accident">
+        <span>⚡</span> Simulate Accident Reroute
+      </button>
+    </div>
+
+    <div class="event-card">
+      <div class="event-icon">🚑</div>
+      <h2>Emergency Vehicle Priority</h2>
+      <p>Calculates and preempts an uncontested Green Wave corridor for ambulances while maintaining surrounding grid throughput.</p>
+      <button class="secondary wide" id="emergency">
+        <span>🟢</span> Activate Green Corridor
+      </button>
+    </div>
+
+    <div class="event-card">
+      <div class="event-icon">🌧️</div>
+      <h2>Severe Monsoon Flooding</h2>
+      <p>Detects waterlogged roads, increases friction penalties, and diverts all vehicle classes to elevated flyovers.</p>
+      <button class="secondary wide" id="weather">
+        <span>☔</span> Apply Flood Divert
+      </button>
+    </div>
+
+    <div class="event-card">
+      <div class="event-icon">🚧</div>
+      <h2>Metro Construction Work</h2>
+      <p>Narrows road width by 50%. Swarm intelligence spreads vehicle departures to prevent queue buildup.</p>
+      <button class="secondary wide" id="construction">
+        <span>🛠️</span> Simulate Lane Closure
+      </button>
+    </div>
+
+    <div class="event-card">
+      <div class="event-icon">🚦</div>
+      <h2>Signal Sync Failure</h2>
+      <p>Signals fall back to isolated mode. Q-FLOW optimizer reweights intersection turn penalties dynamically.</p>
+      <button class="secondary wide" id="signalFail">
+        <span>⚠️</span> Signal Failure Mode
+      </button>
+    </div>
+
+    <div class="event-card event-card-accent">
+      <div class="event-icon">📢</div>
+      <h2>Report Road Hazard</h2>
+      <p>Report potholes, broken down vehicles, or sudden obstacles to trigger instantaneous grid-wide recalculation.</p>
+      <button class="primary wide" id="reportHazardBtn">
+        <span>+</span> Report New Incident
+      </button>
+    </div>
+  </section>
+
+  <section class="response-card show" id="response" style="margin-top:28px;">
+    <div style="font-size:30px; line-height:1; color:var(--text-bright);" id="respIcon">✓</div>
+    <div style="flex:1;">
+      <b style="font-size:17px; color:var(--text-bright);" id="respTitle">Grid Operating in Nominal State</b>
+      <p style="color:var(--muted); margin:4px 0 10px; font-size:14px; line-height:1.5;" id="respDesc">
+        All arterial corridors are balanced. Select a scenario above to see how the model responds. Everything on this page is a simulation.
+      </p>
+      <a class="secondary action-btn" href="results.html" id="respLink" style="font-size:13px; padding:8px 14px; display:inline-flex;">
+        View Updated Route Plan →
+      </a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Q-FLOW • SIH26137 Quantum-Inspired Intelligent Traffic Route Optimization
+</footer>
+
+<script src="safe-html.js"></script>
+<script src="net.js"></script>
+<script src="emissions.js"></script>
+<!-- Q-FLOW app modules (order matters; formerly app.js) -->
+<script src="local-config.js"></script>
+<script src="config.js"></script>
+<script src="ui.js"></script>
+<script src="i18n.js"></script>
+<script src="location.js"></script>
+<script src="geocode.js"></script>
+<script src="routing.js"></script>
+<script src="traffic-live.js"></script>
+<script src="swarm-sim.js"></script>
+<script src="map.js"></script>
+<script src="trips.js"></script>
+<script>
+qflowInitChrome();
+document.getElementById('langSelect').value = qflowLang();
+document.getElementById('langSelect').onchange = e => qflowSetLang(e.target.value);
+
+// Live incidents (only with a TomTom key; otherwise the section stays hidden).
+(function () {
+  if (typeof qflowLive === 'undefined' || !qflowLive || !qflowLive.enabled()) return;
+  const lat = parseFloat(localStorage.getItem('qflowLocLat')), lng = parseFloat(localStorage.getItem('qflowLocLng'));
+  const box = document.getElementById('liveIncidents'), ul = document.getElementById('liveIncidentList');
+  if (!isFinite(lat) || !isFinite(lng)) return;
+  box.hidden = false;
+  qflowLive.incidents(lat, lng, 15).then(list => {
+    if (!list) { box.hidden = true; return; }
+    ul.innerHTML = list.length ? list.slice(0, 12).map(it => {
+      const l = qflowIncidentLine(it);
+      return '<li><span aria-hidden="true">' + escapeHtml(it.icon) + '</span><span><b>' + escapeHtml(it.category) + '</b> · ' + escapeHtml(l.where) +
+        (Number.isFinite(it.delayMin) && it.delayMin > 0 ? ' · about ' + it.delayMin + ' min delay' : '') +
+        (it.description ? '<br><small>' + escapeHtml(it.description) + '</small>' : '') + '</span></li>';
+    }).join('') : '<li>No traffic incidents reported within about 15 km right now.</li>';
+  });
+})();
+
+const respIcon = document.getElementById('respIcon');
+const respTitle = document.getElementById('respTitle');
+const respDesc = document.getElementById('respDesc');
+const responseCard = document.getElementById('response');
+
+function showResponse(icon, title, text, type = 'info') {
+  qflowAudio.playAlert();
+  respIcon.textContent = icon;
+  respTitle.textContent = title;
+  respDesc.textContent = text;
+  responseCard.classList.add('show');
+  qflowToast(title, type);
+}
+
+document.getElementById('accident').onclick = () => {
+  showResponse('🚨', 'Scenario: arterial road blocked', 'In this simulated scenario, traffic planned for the blocked road is reassigned to parallel routes. No real incident or vehicles are involved; see Fleet VRP or Road Status to run the model.', 'alert');
+};
+
+document.getElementById('emergency').onclick = () => {
+  showResponse('🚑', 'Scenario: emergency green corridor', 'In this simulated scenario, one corridor is reserved for an emergency vehicle and other traffic is spread across the remaining roads. No real signals are controlled.', 'success');
+};
+
+document.getElementById('weather').onclick = () => {
+  showResponse('🌧️', 'Scenario: waterlogged roads', 'In this simulated scenario, low-lying roads get a higher travel-time penalty, so routes prefer higher roads. No weather or flood data is used.', 'warn');
+};
+
+document.getElementById('construction').onclick = () => {
+  showResponse('🚧', 'Scenario: lane closure', 'In this simulated scenario, one road loses capacity, so the BPR model raises its travel time and the optimiser spreads traffic to other roads.', 'info');
+};
+
+document.getElementById('signalFail').onclick = () => {
+  showResponse('🚦', 'Scenario: signal sync failure', 'In this simulated scenario, signals lose coordination, adding delay at junctions; routes with fewer signals become more attractive. No real signals are monitored.', 'warn');
+};
+
+document.getElementById('reportHazardBtn').onclick = () => {
+  const hazard = prompt('Enter description of road hazard (e.g., Stalled Truck on Ring Road):', 'Stalled Truck near Tech Park Flyover');
+  if (hazard) {
+    showResponse('📢', 'Report noted (demo): ' + hazard, 'Saved for this demo only. Q-FLOW has no alert server, so no other drivers are notified.', 'success');
+  }
+};
+</script>
+<script src="mode.js"></script>
+</body>
+</html>

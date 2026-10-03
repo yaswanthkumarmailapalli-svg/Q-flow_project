@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Generated web bundle (npm run build:www) and its Capacitor copy (npx cap sync)
+www/
+android/app/src/main/assets/public/
+
+# Android / Gradle build output and machine-specific settings
+android/build/
+android/app/build/
+android/.gradle/
+*.apk
+local.properties
+
+# Benchmark cache (scripts/compare-algorithms.js --cache)
+.bench-cache/
+
+# Android release signing: never commit keys or their passwords
+android/keystore.properties
+*.jks
+*.keystore
+
+# Local TomTom key for scripts/check-tomtom.js: never commit
+.tomtom-key
+
+# Stray file named like an old API key: never commit
+bEIhXUUEKLJfNBrXDvVhnwWDPz747JSM
