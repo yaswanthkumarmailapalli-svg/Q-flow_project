@@ -560,3 +560,5 @@ Without `keystore.properties` the release APK is built unsigned (`app-release-un
 - New tips and buttons are in English; the other languages keep their old text for those items.
 - CO₂ figures are estimates, not measurements. `src/emissions.js` holds the one speed-dependent model: an approximate COPERT-style U-shaped curve (g/km = A/v + B + C·v², about 290 g/km at 10 km/h, 120 g/km near 60 km/h, 140 g/km at 120 km/h for a petrol car), scaled per vehicle; EVs use a flat lifecycle factor. When no speed is available the flat 120 g/km factor is used. The curve's anchor points are indicative, not official COPERT coefficients.
 - Location: Q-FLOW asks before using your location and works without it (type the starting point). Saved places, history and the last location stay in the browser's or app's local storage. Clear them from the Appearance menu ("Data on this device").
+#   Q - f l o w _ p r o j e c t  
+ 
